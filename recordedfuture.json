@@ -5442,9 +5442,14 @@
             "read_only": true,
             "parameters": {
                 "threat_context": {
-                    "description": "Context to use",
+                    "description": "Context is one of c2, malware or phishing",
                     "data_type": "string",
                     "required": true,
+                    "value_list": [
+                        "c2",
+                        "malware",
+                        "phishing"
+                    ],
                     "order": 0,
                     "contains": [
                         "recordedfuture threat assessment context"
@@ -6438,6 +6443,13 @@
                 "entity_type": {
                     "description": "Entity Type",
                     "data_type": "string",
+                    "value_list": [
+                        "ip",
+                        "domain",
+                        "url",
+                        "hash",
+                        "vulnerability"
+                    ],
                     "order": 1
                 },
                 "limit": {
