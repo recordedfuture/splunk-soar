@@ -148,6 +148,7 @@ action_result.parameter.alert_id | string |  `recordedfuture alert id`  |
 action_result.parameter.alert_note | string |  |  
 action_result.parameter.alert_status | string |  |  
 action_result.data.\*.id | string |  |  
+action_result.data.\*.url | string |  |  
 action_result.data.\*.note.author | string |  |  
 action_result.data.\*.note.date | string |  |  
 action_result.data.\*.note.text | string |  |  
