@@ -1444,6 +1444,89 @@
             "versions": "EQ(*)"
         },
         {
+            "action": "fetch analyst notes and create ticket",
+            "identifier": "analyst_note_fetch_create_ticket",
+            "description": "Search for analyst notes using topic, timeframe, and create a new ticket (container) with the full note(s).",
+            "type": "generic",
+            "read_only": false,
+            "parameters": {
+                "topic": {
+                    "description": "Topic ID to search analyst notes.",
+                    "data_type": "string",
+                    "required": true,
+                    "primary": true,
+                    "order": 0
+                },
+                "published": {
+                    "description": "Published time filter (e.g., '-2d' or ISO timestamp).",
+                    "data_type": "string",
+                    "required": false,
+                    "order": 1
+                },
+                "limit": {
+                    "description": "Limit the number of analyst notes to retrieve.",
+                    "data_type": "numeric",
+                    "required": false,
+                    "order": 2
+                },
+                "tagged_text": {
+                    "description": "Whether to return notes with tagged text.",
+                    "data_type": "boolean",
+                    "required": false,
+                    "order": 3
+                },
+                "escape_html": {
+                    "description": "Whether to escape HTML in note content.",
+                    "data_type": "boolean",
+                    "required": false,
+                    "order": 4
+                },
+                "serialization": {
+                    "description": "Serialization format for note content ('full' or 'summary').",
+                    "data_type": "string",
+                    "required": false,
+                    "order": 5
+                }
+            },
+            "output": [
+                {
+                    "data_path": "action_result.status",
+                    "data_type": "string",
+                    "example_values": [
+                        "success",
+                        "failed"
+                    ]
+                },
+                {
+                    "data_path": "action_result.parameter.topic",
+                    "data_type": "string"
+                },
+                {
+                    "data_path": "action_result.data.*.ticket_id",
+                    "data_type": "string"
+                },
+                {
+                    "data_path": "action_result.data.*.note_count",
+                    "data_type": "numeric"
+                },
+                {
+                    "data_path": "action_result.data.*.notes",
+                    "data_type": "object"
+                },
+                {
+                    "data_path": "action_result.summary.message",
+                    "data_type": "string"
+                }
+            ],
+            "render": {
+                "type": "default",
+                "width": 12,
+                "height": 6,
+                "title": "Fetch Analyst Notes and Create Ticket"
+            },
+            "versions": "EQ(*)"
+        },
+        {
             "action": "url intelligence",
             "identifier": "url_intelligence",
             "description": "Get threat intelligence for a URL",
