@@ -1543,6 +1543,40 @@ class RecordedfutureConnector(BaseConnector):
         )
         return action_result.set_status(phantom.APP_SUCCESS)
 
+    def _handle_fetch_analyst_notes(self, param):
+        """Handle the fetch_analyst_notes action."""
+        self.save_progress("In action handler for: {0}".format(self.get_action_identifier()))
+
+        action_result = self.add_action_result(ActionResult(dict(param)))
+
+        topic = param.get("topic")
+        published = param.get("published")
+        limit = int(param.get("limit"))
+
+        payload = {
+            "topic": topic,
+            "published": published,
+            "limit": limit
+        }
+
+        my_ret_val, response = self._make_rest_call("/alert/fetch_notes", action_result, json=payload)
+
+        if phantom.is_fail(my_ret_val):
+            return action_result.get_status()
+
+        notes = response if isinstance(response, list) else []
+
+        # Add each note to action_result
+        for note in notes:
+            action_result.add_data(note)
+
+        action_result.set_summary({
+            "total_notes": len(notes),
+            "message": f"Fetched {len(notes)} analyst note(s)"
+        })
+
+        return action_result.set_status(phantom.APP_SUCCESS)
+
     def handle_action(self, param):
         """Handle a call to the app, switch depending on action."""
         my_ret_val = phantom.APP_SUCCESS
@@ -1630,6 +1664,9 @@ class RecordedfutureConnector(BaseConnector):
 
         elif action_id == "collective_insights_submit":
             my_ret_val = self._handle_collective_insights_submission(param)
+
+        elif action_id == "fetch_analyst_notes":
+            my_ret_val = self._handle_fetch_analyst_notes(param)
 
         return my_ret_val
 

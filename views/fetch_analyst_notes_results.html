@@ -11,7 +11,7 @@
 
 <!-- File: alert_search_results.html
 
-Copyright (c) Recorded Future, Inc, 2019-2024
+Copyright (c) Recorded Future, Inc, 2019-2025
 
 This unpublished material is proprietary to Recorded Future. All
 rights reserved. The methods and techniques described herein are
@@ -198,12 +198,39 @@ and will be merged during compilation:
   <!------------------- For each Result ---------------------->
     {% for result in results %}
       {% for note in result.data %}
-      <div class="rf-box">
-        <h3>{{ note.title }}</h3>
-        <p><b>Published:</b> {{ note.published|slice:"0:10" }}</p>
-        <p><b>Content:</b><br/> {{ note.content }}</p>
-        <p><b>Indicators:</b> {{ note.indicators|join:", " }}</p>
-      </div>
+        <div class="rf-box">
+          <h3>{{ note.title }}</h3>
+          <p><b>Published:</b> {{ note.published|slice:"0:10" }}</p>
+          <p><b>Content:</b><br/> {{ note.text }}</p>
+
+          {% if note.indicators %}
+            <p><b>Indicators:</b>
+              {% for indicator in note.indicators %}
+                {{ indicator.name }} ({{ indicator.type }}){% if not forloop.last %}, {% endif %}
+              {% endfor %}
+            </p>
+          {% endif %}
+
+          {% if note.topic %}
+            <p><b>Topics:</b>
+              {% for topic in note.topic %}
+                {{ topic.name }}{% if not forloop.last %}, {% endif %}
+              {% endfor %}
+            </p>
+          {% endif %}
+
+          {% if note.validation_urls %}
+            <p><b>Validation URLs:</b>
+              {% for url in note.validation_urls %}
+                <a href="{{ url.name }}" target="_blank">{{ url.name }}</a>{% if not forloop.last %}, {% endif %}
+              {% endfor %}
+            </p>
+          {% endif %}
+
+          {% if note.source %}
+            <p><b>Source:</b> {{ note.source.name }} ({{ note.source.type }})</p>
+          {% endif %}
+        </div>
       {% endfor %}
     {% endfor %}
 
