@@ -22,7 +22,7 @@ jobs:
         run: |
           pip install uv
           uv pip install --upgrade pip --system
-          pip install pre-commit
+          uv pip install pre-commit --system
 
       - name: Run pre-commit on all files
         run: pre-commit run --all-files
