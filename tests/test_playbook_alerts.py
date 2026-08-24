@@ -42,6 +42,64 @@ def test_playbook_alerts_search_success(rf_connector, requests_mock):
     assert result.get_status() is True
 
 
+def test_playbook_alerts_search_malicious_sites(rf_connector, requests_mock):
+    """The category is passed straight through to the BFI, with no client side allow list."""
+    in_json: InputJSON = {
+        "action": "playbook alerts search",
+        "identifier": "playbook_alerts_search",
+        "config": {},
+        "parameters": [{"category": "malicious_sites", "status": "New", "limit": 10}],
+        "environment_variables": {},
+    }
+
+    requests_mock.post(
+        f"{BASE_URL}/playbook_alert/search",
+        json=[
+            {
+                "playbook_alert_id": "task:ms001",
+                "category": "malicious_sites",
+                "title": "apex.example.com +1",
+                "status": "New",
+                "priority": "High",
+            }
+        ],
+        headers=JSON_HEADERS,
+        additional_matcher=lambda req: req.json().get("categories") == ["malicious_sites"] and req.json().get("statuses") == ["New"],
+    )
+
+    rf_connector._handle_action(json.dumps(in_json), None)
+
+    result = rf_connector.get_action_results()[0]
+    assert result.get_status() is True
+
+
+def test_playbook_alert_details_malicious_sites(rf_connector, requests_mock):
+    in_json: InputJSON = {
+        "action": "playbook alert details",
+        "identifier": "playbook_alert_details",
+        "config": {},
+        "parameters": [{"alert_id": "task:ms001"}],
+        "environment_variables": {},
+    }
+
+    # The connector percent-encodes the alert id before putting it in the path.
+    requests_mock.get(
+        f"{BASE_URL}/playbook_alert/task%3Ams001",
+        json={
+            "playbook_alert_id": "task:ms001",
+            "category": "malicious_sites",
+            "panel_status": {"status": "New", "priority": "High"},
+        },
+        headers=JSON_HEADERS,
+    )
+
+    rf_connector._handle_action(json.dumps(in_json), None)
+
+    result = rf_connector.get_action_results()[0]
+    assert result.get_status() is True
+    assert result.get_data()[0]["category"] == "malicious_sites"
+
+
 def test_playbook_alerts_search_no_filters(rf_connector, requests_mock):
     in_json: InputJSON = {
         "action": "playbook alerts search",

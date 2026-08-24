@@ -40,6 +40,48 @@ PLAYBOOK_ALERT_CATEGORY_DISPLAY_MAPPING = {
     "domain_abuse": "Domain Abuse",
     "cyber_vulnerability": "Vulnerability",
     "code_repo_leakage": "Code Repo Leakage",
+    "malicious_sites": "Malicious Sites",
+}
+
+PLAYBOOK_ALERT_CATEGORY_MALICIOUS_SITES = "malicious_sites"
+
+# Risk groups of the Malicious Sites "Domains Included" panel, in display order. The payload
+# calls the middle priority "Moderate", which is also the term this app uses for priority
+# everywhere else, so the heading follows the payload rather than the portal's "Medium".
+MALICIOUS_SITES_RISK_GROUP_ORDER = ("High", "Moderate", "Informational")
+
+# MaliciousSitesAttacker.priority is an unconstrained string in the API spec, unlike every
+# other priority field, so an unrecognised value has to land somewhere.
+MALICIOUS_SITES_RISK_GROUP_FALLBACK_LABEL = "Other Risk Domains"
+
+MALICIOUS_SITES_CAUSE_LABEL_MAPPING = {
+    "manual": "Added manually",
+    "typosquat": "Typosquat",
+    "similar_domains": "Similar domain",
+    "logotype": "Logo detection",
+    "logotype_high_interest": "High interest logo detection",
+    "phishing_verdict": "Phishing verdict",
+    "screenshot_mention": "Screenshot mention",
+    "screenshot_custom_keyword": "Custom keyword in screenshot",
+    "login_form": "Login form",
+    "suggested_takedown": "Suggested takedown",
+}
+
+# DrpAsset is a union discriminated on "type". Only these subtypes carry readable text; the
+# rest expose an opaque entity id, so the type name is shown instead of a brand name.
+MALICIOUS_SITES_ASSET_VALUE_FIELDS = ("domain_id", "hostname")
+
+MALICIOUS_SITES_ASSET_TYPE_LABEL_MAPPING = {
+    "client_domain": "Monitored domain",
+    "similar_domain_term": "Similar domain term",
+    "screenshot_ocr_keyword": "Screenshot keyword",
+    "code_repo_keyword": "Code repository keyword",
+    "logotype": "Logotype",
+    "image_hash": "Image hash",
+    "company": "Company",
+    "organization": "Organization",
+    "product": "Product",
+    "executive": "Executive",
 }
 
 
@@ -50,7 +92,124 @@ def format_datetime_string(datetime_string):
         return datetime_string
 
 
-def format_domain_abuse_details_result(result):
+def strip_entity_prefix(entity_identity):
+    """Turn a Recorded Future entity identity such as "idn:evil.com" into "evil.com"."""
+    if not isinstance(entity_identity, str):
+        return entity_identity
+    _, _, value = entity_identity.partition(":")
+    return value or entity_identity
+
+
+def malicious_sites_asset_label(asset):
+    """Describe a matched asset of a Malicious Sites attacker.
+
+    Only two DrpAsset subtypes carry readable text: a client domain, and the three
+    term-carrying subtypes. Everything else holds an opaque entity id, so the asset type is
+    shown rather than a meaningless identifier.
+    """
+    if not isinstance(asset, dict):
+        return None
+
+    for field in MALICIOUS_SITES_ASSET_VALUE_FIELDS:
+        if asset.get(field):
+            return strip_entity_prefix(asset[field])
+
+    term = asset.get("term")
+    if isinstance(term, dict) and term.get("text"):
+        return term["text"]
+
+    asset_type = asset.get("type")
+    return MALICIOUS_SITES_ASSET_TYPE_LABEL_MAPPING.get(asset_type, asset_type)
+
+
+def format_malicious_sites_attacker(attacker, apex_entity_id):
+    """Build the display fields of one attacker domain row."""
+    assets = [malicious_sites_asset_label(asset) for asset in attacker.get("assets") or []]
+    cause = attacker.get("cause")
+
+    attacker["domain"] = strip_entity_prefix(attacker.get("attacker"))
+    attacker["is_apex"] = bool(apex_entity_id) and attacker.get("attacker") == apex_entity_id
+    attacker["cause_label"] = MALICIOUS_SITES_CAUSE_LABEL_MAPPING.get(cause, cause.replace("_", " ").capitalize() if cause else None)
+    attacker["matched_assets"] = sorted({asset for asset in assets if asset})
+    attacker["created_at"] = format_datetime_string(attacker.get("created_at"))
+
+    for verdict in attacker.get("phishing_verdicts") or []:
+        severity = verdict.get("severity")
+        verdict["severity_label"] = severity.replace("_", " ") if severity else None
+
+    return attacker
+
+
+def group_malicious_sites_attackers(data):
+    """Group the attacker domains of a Malicious Sites alert into risk sections.
+
+    Returns the sections in priority order, each with the rows that belong to it, so the
+    template only has to iterate. Django templates cannot group, which is why this is done
+    here. Priorities outside the known set land in a trailing fallback section rather than
+    being dropped, because the API spec does not constrain the value.
+    """
+    panel_evidence_summary = data.get("panel_evidence_summary") or {}
+    apex_entity_id = (data.get("panel_status") or {}).get("entity_id")
+
+    grouped = {priority: [] for priority in MALICIOUS_SITES_RISK_GROUP_ORDER}
+    fallback = []
+    for attacker in panel_evidence_summary.get("attackers") or []:
+        row = format_malicious_sites_attacker(attacker, apex_entity_id)
+        grouped.get(attacker.get("priority"), fallback).append(row)
+
+    groups = [
+        {
+            "label": f"{priority} Risk Domains",
+            "count": len(grouped[priority]),
+            "attackers": grouped[priority],
+        }
+        for priority in MALICIOUS_SITES_RISK_GROUP_ORDER
+        if grouped[priority]
+    ]
+    if fallback:
+        groups.append(
+            {
+                "label": MALICIOUS_SITES_RISK_GROUP_FALLBACK_LABEL,
+                "count": len(fallback),
+                "attackers": fallback,
+            }
+        )
+    return groups
+
+
+def format_malicious_sites_details(data):
+    """Add the Malicious Sites view model to a playbook alert detail payload."""
+    panel_status = data.get("panel_status") or {}
+    panel_evidence_summary = data.get("panel_evidence_summary") or {}
+
+    data["risk_groups"] = group_malicious_sites_attackers(data)
+    data["domains_included_count"] = len(panel_status.get("attackers") or [])
+
+    # The summary panel is the better source of assessments; fall back to the status panel.
+    data["summary_assessments"] = panel_evidence_summary.get("assessments") or panel_status.get("assessments")
+
+    data["matched_assets"] = sorted(
+        {asset for group in data["risk_groups"] for attacker in group["attackers"] for asset in attacker["matched_assets"]}
+    )
+
+    # The BFI returns the base64 images index aligned with the screenshot records. Pair them
+    # up here, because a Django template cannot index a list by a loop variable.
+    images = data.get("images") or []
+    screenshots = panel_evidence_summary.get("screenshots") or []
+    for index, screenshot in enumerate(screenshots):
+        screenshot["domain_label"] = strip_entity_prefix(screenshot.get("domain"))
+        screenshot["created"] = format_datetime_string(screenshot.get("created"))
+        screenshot["image"] = images[index] if index < len(images) else None
+
+    return data
+
+
+def format_playbook_alert_details_result(result):
+    """Prepare one playbook alert detail action result for the detail widget.
+
+    Shared by every category. The datetime fields are formatted defensively because a
+    category may omit a panel entirely, and an exception here blanks the whole widget.
+    """
     retval = {"param": result.get_param()}
 
     data = result.get_data()
@@ -60,12 +219,17 @@ def format_domain_abuse_details_result(result):
         retval["data"] = data
         return retval
 
-    data["panel_status"]["created"] = format_datetime_string(data["panel_status"]["created"])
-    data["panel_status"]["updated"] = format_datetime_string(data["panel_status"]["updated"])
+    panel_status = data.get("panel_status") or {}
+    for field in ("created", "updated"):
+        if panel_status.get(field):
+            panel_status[field] = format_datetime_string(panel_status[field])
 
     panel_evidence_whois = data.get("panel_evidence_whois", {})
     if panel_evidence_whois and not isinstance(panel_evidence_whois.get("body"), list):
         panel_evidence_whois["body"] = []
+
+    if data.get("category") == PLAYBOOK_ALERT_CATEGORY_MALICIOUS_SITES:
+        data = format_malicious_sites_details(data)
 
     retval["data"] = data
     return retval
@@ -455,7 +619,7 @@ def playbook_alert_details_results(provides, all_app_runs, context):
     context["results"] = results = []
     for summary, action_results in all_app_runs:
         for result in action_results:
-            results.append(format_domain_abuse_details_result(result))
+            results.append(format_playbook_alert_details_result(result))
 
     return "views/playbook_alert_details_results.html"
 

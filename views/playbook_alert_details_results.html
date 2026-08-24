@@ -479,6 +479,259 @@ and will be merged during compilation:
               </div>
             {% endfor %}
           </div>
+        {% elif result.data.category == "malicious_sites" %}
+          <h3 class="rf-playbook-alert-panel-title">Malicious Sites</h3>
+          <div class="rf-alert-panel">
+            <div class="rf-playbook-alert-data-row" style="margin-bottom: 10px">
+              <div class="rf-playbook-alert-data-row-title">Subject</div>
+              <div class="rf-playbook-alert-data-row" style="gap: 5px; margin: 0">
+                <h5>{{ result.data.panel_status.entity_name }}</h5>
+                <div class="rf-circle rf-criticality-level-{{ result.data.panel_status.entity_criticality }}"></div>
+                <div>{{ result.data.panel_status.risk_score }}</div>
+              </div>
+            </div>
+            {% if result.data.panel_status.alert_rule.name %}
+              <div class="rf-playbook-alert-data-row">
+                <div class="rf-playbook-alert-data-row-title">Alert Rule</div>
+                <div>{{ result.data.panel_status.alert_rule.name }}</div>
+              </div>
+            {% endif %}
+            <div class="rf-playbook-alert-data-row">
+              <div class="rf-playbook-alert-data-row-title">Domains</div>
+              <div>{{ result.data.domains_included_count }} included</div>
+            </div>
+            {% if result.data.matched_assets %}
+              <div class="rf-playbook-alert-data-row" style="align-items: flex-start">
+                <div class="rf-playbook-alert-data-row-title">Matched assets</div>
+                <div style="display: block;">
+                  {% for asset in result.data.matched_assets %}
+                    <div style="margin-bottom: 5px;">{{ asset }}</div>
+                  {% endfor %}
+                </div>
+              </div>
+            {% endif %}
+            {% if result.data.panel_status.targets %}
+              <div class="rf-playbook-alert-data-row" style="align-items: flex-start">
+                <div class="rf-playbook-alert-data-row-title">Targets</div>
+                <div style="display: block;">
+                  {% for target in result.data.panel_status.targets %}
+                    <div style="margin-bottom: 5px;">{{ target }}</div>
+                  {% endfor %}
+                </div>
+              </div>
+            {% endif %}
+            <div class="rf-playbook-alert-data-row">
+              <div class="rf-playbook-alert-data-row-title">Status</div>
+              <div>{{ result.data.panel_status.status }}</div>
+            </div>
+            <div class="rf-playbook-alert-data-row">
+              <div class="rf-playbook-alert-data-row-title">Priority</div>
+              <div class="rf-playbook-alert-data-row" style="gap: 5px; margin: 0">
+                <div class="rf-circle rf-priority-level-{{ result.data.panel_status.priority }}"></div>
+                <div>{{ result.data.panel_status.priority }}</div>
+              </div>
+            </div>
+            <div class="rf-playbook-alert-data-row">
+              <div class="rf-playbook-alert-data-row-title">Created</div>
+              <div>{{ result.data.panel_status.created }}</div>
+            </div>
+          </div>
+          <h3 class="rf-playbook-alert-panel-title">Summary</h3>
+          <div class="rf-alert-panel">
+            {% if result.data.panel_evidence_summary.explanation %}
+              <h5 style="margin-bottom: 10px">{{ result.data.panel_evidence_summary.explanation }}</h5>
+            {% endif %}
+            {% if result.data.summary_assessments %}
+              <div class="rf-playbook-alert-data-row" style="flex-wrap: wrap">
+                <div class="rf-playbook-alert-data-row-title">Assessments</div>
+                {% for assessment in result.data.summary_assessments %}
+                  <div class="rf-chip-box rf-priority-level-{{ assessment.priority }}">{{ assessment.name }}</div>
+                {% endfor %}
+              </div>
+            {% endif %}
+            {% for resolved_record in result.data.panel_evidence_summary.resolved_record_list %}
+              <div class="rf-playbook-alert-data-row">
+                <div class="rf-playbook-alert-evidence-data-row-title">{{ resolved_record.entity }}</div>
+                <div class="rf-playbook-alert-data-row" style="gap: 5px; margin: 0">
+                  <div class="rf-circle rf-criticality-level-{{ resolved_record.criticality }}"></div>
+                  <div>{{ resolved_record.risk_score }}</div>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+          <h3 class="rf-playbook-alert-panel-title">Domains Included</h3>
+          <div class="rf-alert-panel">
+            {% for group in result.data.risk_groups %}
+              <h5 style="margin-top: 10px">{{ group.label }} ({{ group.count }})</h5>
+              {% for attacker in group.attackers %}
+                <div class="rf-alert-panel" style="margin-bottom: 10px">
+                  <div class="rf-playbook-alert-data-row" style="flex-wrap: wrap">
+                    <h5 style="margin: 0">{{ attacker.domain }}</h5>
+                    {% if attacker.is_apex %}<div class="rf-chip-box">Main (Apex)</div>{% endif %}
+                    {% for assessment in attacker.assessments %}
+                      <div class="rf-chip-box rf-priority-level-{{ assessment.priority }}">{{ assessment.name }}</div>
+                    {% endfor %}
+                  </div>
+                  {% if attacker.cause_label %}
+                    <div class="rf-playbook-alert-data-row">
+                      <div class="rf-playbook-alert-data-row-title">Detected by</div>
+                      <div>{{ attacker.cause_label }}</div>
+                    </div>
+                  {% endif %}
+                  {% if attacker.matched_assets %}
+                    <div class="rf-playbook-alert-data-row">
+                      <div class="rf-playbook-alert-data-row-title">Matched assets</div>
+                      <div>{{ attacker.matched_assets|join:", " }}</div>
+                    </div>
+                  {% endif %}
+                  {% for verdict in attacker.phishing_verdicts %}
+                    <div class="rf-playbook-alert-data-row">
+                      <div class="rf-playbook-alert-data-row-title">Phishing</div>
+                      <div>{{ verdict.url }} ({{ verdict.severity_label }})</div>
+                    </div>
+                  {% endfor %}
+                  <div class="rf-playbook-alert-data-row">
+                    <div class="rf-playbook-alert-data-row-title">Detected</div>
+                    <div>{{ attacker.created_at }}</div>
+                  </div>
+                </div>
+              {% endfor %}
+            {% endfor %}
+          </div>
+          <h3 class="rf-playbook-alert-panel-title">Screenshots</h3>
+          <div class="rf-alert-panel">
+            {% for screenshot in result.data.panel_evidence_summary.screenshots %}
+              <div class="rf-playbook-alert-data-row">
+                <div class="rf-playbook-alert-evidence-data-row-title">{{ screenshot.domain_label }}</div>
+                <div>{{ screenshot.tag }}</div>
+                <div>{{ screenshot.created }}</div>
+              </div>
+              {% if screenshot.image %}
+                <img class="rf-playbook-alert-screenshot"
+                     src="data:image/jpeg;base64, {{ screenshot.image }}"
+                     alt="Screenshot of {{ screenshot.domain_label }}">
+              {% endif %}
+            {% endfor %}
+          </div>
+          <h3 class="rf-playbook-alert-panel-title">DNS Records</h3>
+          <div class="rf-alert-panel">
+            <h5>IP Addresses</h5>
+            {% for ip in result.data.panel_evidence_dns.ip_list %}
+              <div class="rf-playbook-alert-data-row">
+                <div>{{ ip.record_type }}</div>
+                <div class="rf-playbook-alert-dns-data-row">
+                  <div>{{ ip.entity }}</div>
+                  <div class="rf-circle rf-criticality-level-{{ ip.criticality }}"></div>
+                  <div>{{ ip.risk_score }}</div>
+                </div>
+              </div>
+            {% endfor %}
+            <h5>Mail Server</h5>
+            {% for mx in result.data.panel_evidence_dns.mx_list %}
+              <div class="rf-playbook-alert-whois-data-row">
+                <div>{{ mx.record_type }}</div>
+                <div class="rf-playbook-alert-dns-data-row">
+                  <div>{{ mx.entity }}</div>
+                  <div class="rf-circle rf-criticality-level-{{ mx.criticality }}"></div>
+                  <div>{{ mx.risk_score }}</div>
+                </div>
+              </div>
+            {% endfor %}
+            <h5>Name Server</h5>
+            {% for ns in result.data.panel_evidence_dns.ns_list %}
+              <div class="rf-playbook-alert-whois-data-row">
+                <div>{{ ns.record_type }}</div>
+                <div class="rf-playbook-alert-dns-data-row">
+                  <div>{{ ns.entity }}</div>
+                  <div class="rf-circle rf-criticality-level-{{ ns.criticality }}"></div>
+                  <div>{{ ns.risk_score }}</div>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+          <h3 class="rf-playbook-alert-panel-title">Whois Record Data</h3>
+          <div class="rf-alert-panel">
+            {% for contact in result.data.panel_evidence_whois.body %}
+              {% if contact.value.type %}
+                <h5 style="margin-top: 20px; margin-bottom: 0">{{ contact.value.type }}</h5>
+                {% if contact.value.telephone %}
+                  <div class="rf-playbook-alert-whois-data-row">
+                    <div class="rf-playbook-alert-whois-data-row-title">Telephone</div>
+                    <div>{{ contact.value.telephone }}</div>
+                  </div>
+                {% endif %}
+                {% if contact.value.name %}
+                  <div class="rf-playbook-alert-whois-data-row">
+                    <div class="rf-playbook-alert-whois-data-row-title">Name</div>
+                    <div>{{ contact.value.name }}</div>
+                  </div>
+                {% endif %}
+                {% if contact.value.street1 %}
+                  <div class="rf-playbook-alert-whois-data-row">
+                    <div class="rf-playbook-alert-whois-data-row-title">Street 1</div>
+                    <div>{{ contact.value.street1 }}</div>
+                  </div>
+                {% endif %}
+                {% if contact.value.city %}
+                  <div class="rf-playbook-alert-whois-data-row">
+                    <div class="rf-playbook-alert-whois-data-row-title">City</div>
+                    <div>{{ contact.value.city }}</div>
+                  </div>
+                {% endif %}
+                {% if contact.value.state %}
+                  <div class="rf-playbook-alert-whois-data-row">
+                    <div class="rf-playbook-alert-whois-data-row-title">State</div>
+                    <div>{{ contact.value.state }}</div>
+                  </div>
+                {% endif %}
+                {% if contact.value.postalCode %}
+                  <div class="rf-playbook-alert-whois-data-row">
+                    <div class="rf-playbook-alert-whois-data-row-title">Postal code</div>
+                    <div>{{ contact.value.postalCode }}</div>
+                  </div>
+                {% endif %}
+                {% if contact.value.countryCode %}
+                  <div class="rf-playbook-alert-whois-data-row">
+                    <div class="rf-playbook-alert-whois-data-row-title">Country Code</div>
+                    <div>{{ contact.value.countryCode }}</div>
+                  </div>
+                {% endif %}
+                {% if contact.value.country %}
+                  <div class="rf-playbook-alert-whois-data-row">
+                    <div class="rf-playbook-alert-whois-data-row-title">Country</div>
+                    <div>{{ contact.value.country }}</div>
+                  </div>
+                {% endif %}
+              {% endif %}
+            {% endfor %}
+          </div>
+        {% else %}
+          <h3 class="rf-playbook-alert-panel-title">{{ result.data.category }}</h3>
+          <div class="rf-alert-panel">
+            <div class="rf-playbook-alert-data-row" style="margin-bottom: 10px">
+              <div class="rf-playbook-alert-data-row-title">Subject</div>
+              <div class="rf-playbook-alert-data-row" style="gap: 5px; margin: 0">
+                <h5>{{ result.data.panel_status.entity_name }}</h5>
+                <div class="rf-circle rf-criticality-level-{{ result.data.panel_status.entity_criticality }}"></div>
+                <div>{{ result.data.panel_status.risk_score }}</div>
+              </div>
+            </div>
+            <div class="rf-playbook-alert-data-row">
+              <div class="rf-playbook-alert-data-row-title">Status</div>
+              <div>{{ result.data.panel_status.status }}</div>
+            </div>
+            <div class="rf-playbook-alert-data-row">
+              <div class="rf-playbook-alert-data-row-title">Priority</div>
+              <div class="rf-playbook-alert-data-row" style="gap: 5px; margin: 0">
+                <div class="rf-circle rf-priority-level-{{ result.data.panel_status.priority }}"></div>
+                <div>{{ result.data.panel_status.priority }}</div>
+              </div>
+            </div>
+            <div class="rf-playbook-alert-data-row">
+              <div class="rf-playbook-alert-data-row-title">Created</div>
+              <div>{{ result.data.panel_status.created }}</div>
+            </div>
+          </div>
         {% endif %}
       {% endfor %}
     </div>
