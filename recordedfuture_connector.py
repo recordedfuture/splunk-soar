@@ -595,7 +595,7 @@ class RecordedfutureConnector(BaseConnector):
             self.debug_print(
                 "_handle_list_search",
                 {
-                    "endpoint": f"/list/{list_id}/info",
+                    "endpoint": f"/list/{safe_list_id}/info",
                     "action_result": action_result,
                     "param": param,
                     "my_ret_val": my_ret_val,
