@@ -590,8 +590,8 @@ class RecordedfutureConnector(BaseConnector):
             )
 
         if list_id:
-            list_id = UnicodeDammit(list_id).unicode_markup
-            my_ret_val, response = self._make_rest_call(f"/list/{list_id}/info", action_result, method="get")
+            safe_list_id = quote(str(list_id), safe="")
+            my_ret_val, response = self._make_rest_call(f"/list/{safe_list_id}/info", action_result, method="get")
             self.debug_print(
                 "_handle_list_search",
                 {
