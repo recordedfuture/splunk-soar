@@ -967,9 +967,13 @@ action_result.parameter.entity_types | string | | |
 action_result.parameter.limit | numeric | | |
 action_result.parameter.list_name | string | | |
 action_result.data.\*.id | string | | |
+action_result.data.\*.created | string | | |
 action_result.data.\*.name | string | | |
-action_result.data.\*.organisation_name | string | | |
+action_result.data.\*.owner_id | string | | |
 action_result.data.\*.owner_name | string | | |
+action_result.data.\*.organisation_id | string | | |
+action_result.data.\*.organisation_name | string | | |
+action_result.data.\*.updated | string | | |
 action_result.data.\*.type | string | | |
 action_result.summary | string | | |
 action_result.message | string | `recordedfuture result message` | |

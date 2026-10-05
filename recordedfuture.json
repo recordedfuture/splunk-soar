@@ -4611,7 +4611,23 @@
                     "data_type": "string"
                 },
                 {
+                    "data_path": "action_result.data.*.created",
+                    "data_type": "string"
+                },
+                {
                     "data_path": "action_result.data.*.name",
+                    "data_type": "string"
+                },
+                {
+                    "data_path": "action_result.data.*.owner_id",
+                    "data_type": "string"
+                },
+                {
+                    "data_path": "action_result.data.*.owner_name",
+                    "data_type": "string"
+                },
+                {
+                    "data_path": "action_result.data.*.organisation_id",
                     "data_type": "string"
                 },
                 {
@@ -4619,7 +4635,7 @@
                     "data_type": "string"
                 },
                 {
-                    "data_path": "action_result.data.*.owner_name",
+                    "data_path": "action_result.data.*.updated",
                     "data_type": "string"
                 },
                 {

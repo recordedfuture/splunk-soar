@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import json
+from pathlib import Path
 
 from pytest_splunk_soar_connectors.models import InputJSON
 
@@ -26,6 +27,25 @@ MOCKED_LIST_INFO = {
     "id": "abc123",
     "name": "My List",
     "type": "ip",
+}
+
+MOCKED_LIST_INFO_WITH_OWNERSHIP = {
+    "id": "report:Zza-KRu",
+    "name": "Hackers",
+    "type": "entity",
+    "created": "2025-11-12T17:58:41.042Z",
+    "updated": "2025-11-12T18:00:11.564Z",
+    "owner_id": "uhash:thisisnotreal",
+    "owner_name": "John Doe",
+    "organisation_id": "uhash:thisorgisnotreal",
+    "organisation_name": "Recorded Future",
+    "owner_organisation_details": {
+        "owner_id": "uhash:thisisnotreal",
+        "owner_name": "John Doe",
+        "organisations": [],
+        "enterprise_id": "uhash:thisorgisnotreal",
+        "enterprise_name": "Recorded Future",
+    },
 }
 
 MOCKED_LIST_SEARCH_RESPONSE = [
@@ -55,6 +75,49 @@ def test_list_search_by_list_id(rf_connector, requests_mock):
     result = rf_connector.get_action_results()[0]
     assert result.get_status() is True
     assert requests_mock.last_request.method == "GET"
+
+
+def test_list_search_by_list_id_preserves_all_response_fields(rf_connector, requests_mock):
+    """The list-search action should preserve fields from the complete list-info response."""
+    in_json: InputJSON = {
+        "action": "list search",
+        "identifier": "list_search",
+        "config": {},
+        "parameters": [{"list_id": MOCKED_LIST_INFO_WITH_OWNERSHIP["id"]}],
+        "environment_variables": {},
+    }
+    requests_mock.get(
+        f"{BASE_URL}/list/report%3AZza-KRu/info",
+        json=MOCKED_LIST_INFO_WITH_OWNERSHIP,
+        headers=JSON_HEADERS,
+    )
+
+    rf_connector._handle_action(json.dumps(in_json), None)
+
+    result = rf_connector.get_action_results()[0]
+    assert result.get_status() is True
+    assert result.get_data() == [MOCKED_LIST_INFO_WITH_OWNERSHIP]
+
+
+def test_list_search_output_schema_declares_all_scalar_response_fields():
+    """The action output schema should expose all scalar fields from the list response."""
+    manifest_path = Path(__file__).resolve().parents[1] / "recordedfuture.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    list_search_action = next(action for action in manifest["actions"] if action["identifier"] == "list_search")
+    declared_paths = {field["data_path"] for field in list_search_action["output"]}
+    expected_paths = {
+        "action_result.data.*.id",
+        "action_result.data.*.name",
+        "action_result.data.*.type",
+        "action_result.data.*.created",
+        "action_result.data.*.updated",
+        "action_result.data.*.owner_id",
+        "action_result.data.*.owner_name",
+        "action_result.data.*.organisation_id",
+        "action_result.data.*.organisation_name",
+    }
+
+    assert expected_paths <= declared_paths
 
 
 def test_list_search_by_name(rf_connector, requests_mock):
@@ -130,6 +193,31 @@ def test_list_search_no_filters_uses_default_limit(rf_connector, requests_mock):
 
     result = rf_connector.get_action_results()[0]
     assert result.get_status() is True
+
+
+def test_list_search_by_list_id_url_encoding_matches_list_details(rf_connector, requests_mock):
+    """A list_id containing ':' must be URL-encoded identically by list search and list details."""
+    list_id = "report:Zaa-RuP"
+    expected_url = f"{BASE_URL}/list/report%3AZaa-RuP/info"
+
+    requests_mock.get(expected_url, json=MOCKED_LIST_INFO, headers=JSON_HEADERS)
+
+    requested_urls = []
+    for action_name, identifier in (("list search", "list_search"), ("list details", "list_details")):
+        in_json: InputJSON = {
+            "action": action_name,
+            "identifier": identifier,
+            "config": {},
+            "parameters": [{"list_id": list_id}],
+            "environment_variables": {},
+        }
+        rf_connector._handle_action(json.dumps(in_json), None)
+        assert rf_connector.get_action_results()[-1].get_status() is True
+        requested_urls.append(requests_mock.last_request.url)
+
+    list_search_url, list_details_url = requested_urls
+    assert list_search_url == expected_url
+    assert list_search_url == list_details_url
 
 
 def test_list_search_by_list_id_api_error(rf_connector, requests_mock):
