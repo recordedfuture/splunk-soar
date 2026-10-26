@@ -18,6 +18,8 @@
 # the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
 # either express or implied. See the License for the specific language governing permissions
 # and limitations under the License.
+import os
+import re
 from datetime import datetime
 
 from recordedfuture_consts import RF_PLAYBOOK_STATUS_MAP
@@ -42,6 +44,19 @@ PLAYBOOK_ALERT_CATEGORY_DISPLAY_MAPPING = {
     "code_repo_leakage": "Code Repo Leakage",
     "malicious_sites": "Malicious Sites",
 }
+
+
+def load_shared_css():
+    """Return only the CSS from views/shared_css.html (without the <style> tags or license comment).
+
+    The template wraps this in its own <style> element and applies |safe, so it does not rely on
+    mark_safe surviving SOAR's context handling, and no markup is left to be HTML-escaped.
+    """
+    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "views", "shared_css.html")
+    with open(path, encoding="utf-8") as css_file:
+        content = css_file.read()
+    match = re.search(r"<style[^>]*>(.*?)</style>", content, re.DOTALL | re.IGNORECASE)
+    return match.group(1) if match else ""
 
 
 def format_datetime_string(datetime_string):
@@ -186,6 +201,7 @@ def format_contexts_result(result, all_data=False):
 
 
 def intelligence_results(provides, all_app_runs, context):
+    context["shared_css"] = load_shared_css()
     context["results"] = results = []
     for summary, action_results in all_app_runs:
         for result in action_results:
@@ -198,6 +214,7 @@ def intelligence_results(provides, all_app_runs, context):
 
 
 def reputation_results(provides, all_app_runs, context):
+    context["shared_css"] = load_shared_css()
     context["results"] = results = []
     for summary, action_results in all_app_runs:
         for result in action_results:
@@ -210,6 +227,7 @@ def reputation_results(provides, all_app_runs, context):
 
 
 def contexts_results(provides, all_app_runs, context):
+    context["shared_css"] = load_shared_css()
     context["results"] = results = []
     for summary, action_results in all_app_runs:
         for result in action_results:
@@ -227,6 +245,7 @@ def format_alert_result(result):
 
 def alert_lookup_results(provides, all_app_runs, context):
     """Setup the view for an alert."""
+    context["shared_css"] = load_shared_css()
     context["results"] = results = []
 
     for summary, action_results in all_app_runs:
@@ -241,6 +260,7 @@ def alert_lookup_results(provides, all_app_runs, context):
 
 def alert_update_results(provides, all_app_runs, context):
     """Setup the view for an alert."""
+    context["shared_css"] = load_shared_css()
     context["results"] = results = []
 
     for summary, action_results in all_app_runs:
@@ -255,6 +275,7 @@ def alert_update_results(provides, all_app_runs, context):
 
 def alert_search_results(provides, all_app_runs, context):
     """Setup the view for alert results."""
+    context["shared_css"] = load_shared_css()
     context["results"] = results = []
 
     for summary, action_results in all_app_runs:
@@ -269,6 +290,7 @@ def alert_search_results(provides, all_app_runs, context):
 
 def alert_rule_search_results(provides, all_app_runs, context):
     """Render the list of Alert Rules that match the search."""
+    context["shared_css"] = load_shared_css()
     context["results"] = results = []
 
     for summary, action_results in all_app_runs:
@@ -314,6 +336,7 @@ def format_threat_assessment_result(result, all_data=False):
 
 def threat_assessment_results(provides, all_app_runs, context):
     """Setup the view for Threat Assessment results."""
+    context["shared_css"] = load_shared_css()
     context["results"] = results = []
     for summary, action_results in all_app_runs:
         for result in action_results:
@@ -327,6 +350,7 @@ def threat_assessment_results(provides, all_app_runs, context):
 
 def list_search_results(provides, all_app_runs, context):
     """Setup the view for list search results."""
+    context["shared_css"] = load_shared_css()
     context["results"] = results = []
     for summary, action_results in all_app_runs:
         for result in action_results:
@@ -346,6 +370,7 @@ def list_search_results(provides, all_app_runs, context):
 
 def list_create_results(provides, all_app_runs, context):
     """Setup the view for list create result"""
+    context["shared_css"] = load_shared_css()
     context["results"] = results = []
     for summary, action_results in all_app_runs:
         for result in action_results:
@@ -359,6 +384,7 @@ def list_create_results(provides, all_app_runs, context):
 
 def list_details_results(provides, all_app_runs, context):
     """Setup the view for list details result"""
+    context["shared_css"] = load_shared_css()
     context["results"] = results = []
     for summary, action_results in all_app_runs:
         for result in action_results:
@@ -375,6 +401,7 @@ def list_details_results(provides, all_app_runs, context):
 
 def list_status_results(provides, all_app_runs, context):
     """Setup the view for list status info"""
+    context["shared_css"] = load_shared_css()
     context["results"] = results = []
     for summary, action_results in all_app_runs:
         for result in action_results:
@@ -389,6 +416,7 @@ def list_status_results(provides, all_app_runs, context):
 
 def list_entities_results(provides, all_app_runs, context):
     """Setup the view for list status info"""
+    context["shared_css"] = load_shared_css()
     context["results"] = results = []
     for summary, action_results in all_app_runs:
         for result in action_results:
@@ -405,6 +433,7 @@ def list_entities_results(provides, all_app_runs, context):
 
 def list_entities_management_results(provides, all_app_runs, context):
     """Setup the view for list status info"""
+    context["shared_css"] = load_shared_css()
     context["results"] = results = []
     for summary, action_results in all_app_runs:
         for result in action_results:
@@ -419,6 +448,7 @@ def list_entities_management_results(provides, all_app_runs, context):
 
 def playbook_alert_search_results(provides, all_app_runs, context):
     """Setup the view for Playbook alerts search result"""
+    context["shared_css"] = load_shared_css()
     context["results"] = results = []
     for summary, action_results in all_app_runs:
         for result in action_results:
@@ -440,6 +470,7 @@ def playbook_alert_search_results(provides, all_app_runs, context):
 
 def playbook_alert_update_results(provides, all_app_runs, context):
     """Setup the view for Playbook alert update"""
+    context["shared_css"] = load_shared_css()
     context["results"] = results = []
     for summary, action_results in all_app_runs:
         for result in action_results:
@@ -453,6 +484,7 @@ def playbook_alert_update_results(provides, all_app_runs, context):
 
 def playbook_alert_details_results(provides, all_app_runs, context):
     """Setup the view for Playbook alert details"""
+    context["shared_css"] = load_shared_css()
     context["results"] = results = []
     for summary, action_results in all_app_runs:
         for result in action_results:
@@ -463,6 +495,7 @@ def playbook_alert_details_results(provides, all_app_runs, context):
 
 def entity_search_results(provides, all_app_runs, context):
     """Setup the view for entity search results."""
+    context["shared_css"] = load_shared_css()
 
     context["results"] = results = []
     for summary, action_results in all_app_runs:
@@ -477,6 +510,7 @@ def entity_search_results(provides, all_app_runs, context):
 
 def links_search_results(provides, all_app_runs, context):
     """Setup the view for links search results."""
+    context["shared_css"] = load_shared_css()
     context["results"] = results = []
     for summary, action_results in all_app_runs:
         for result in action_results:
@@ -489,6 +523,7 @@ def links_search_results(provides, all_app_runs, context):
 
 def detection_rule_search_results(provides, all_app_runs, context):
     """Setup the view for detection rule search results."""
+    context["shared_css"] = load_shared_css()
     context["results"] = results = []
     for summary, action_results in all_app_runs:
         for result in action_results:
@@ -501,6 +536,7 @@ def detection_rule_search_results(provides, all_app_runs, context):
 
 def threat_actor_intelligence_results(provides, all_app_runs, context):
     """Setup the view for threat actor intelligence results."""
+    context["shared_css"] = load_shared_css()
     context["results"] = results = []
     for summary, action_results in all_app_runs:
         for result in action_results:
@@ -514,6 +550,7 @@ def threat_actor_intelligence_results(provides, all_app_runs, context):
 
 def threat_map_results(provides, all_app_runs, context):
     """Setup the view for threat map results."""
+    context["shared_css"] = load_shared_css()
     context["results"] = results = []
     for summary, action_results in all_app_runs:
         for result in action_results:
@@ -528,6 +565,7 @@ def threat_map_results(provides, all_app_runs, context):
 
 def identity_leaked_credentials_results(provides, all_app_runs, context):
     """Setup the view for leaked credentials results."""
+    context["shared_css"] = load_shared_css()
     context["results"] = results = []
 
     for summary, action_results in all_app_runs:
@@ -568,11 +606,13 @@ def identity_leaked_credentials_results(provides, all_app_runs, context):
 
 def collective_insights_submission_results(provides, all_app_runs, context):
     """Setup the view for collective insights submission."""
+    context["shared_css"] = load_shared_css()
     return "views/collective_insights_submission_results.html"
 
 
 def fetch_analyst_notes_results(provides, all_app_runs, context):
     """Setup the view for displaying fetched analyst notes."""
+    context["shared_css"] = load_shared_css()
     context["results"] = results = []
 
     for summary, action_results in all_app_runs:
