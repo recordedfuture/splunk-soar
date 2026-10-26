@@ -46,7 +46,7 @@ VARIABLE | REQUIRED | TYPE | DESCRIPTION
 **max_count** | optional | numeric | Max events to ingest for scheduled polling |
 **first_max_count** | optional | numeric | Max events to ingest for scheduled polling first time |
 **on_poll_playbook_alert_priority** | optional | string | Comma separated On Poll Playbook Alerts priority threshold (High,Moderate,Informational) |
-**on_poll_playbook_alert_type** | optional | string | Comma-separated list of Playbook alert types. (domain_abuse, cyber_vulnerability, code_repo_leakage are now supported) |
+**on_poll_playbook_alert_type** | optional | string | Comma-separated list of Playbook alert types. (domain_abuse, cyber_vulnerability, code_repo_leakage, malicious_sites are supported) |
 **on_poll_playbook_alert_status** | optional | string | Comma-separated list of Playbook alert statuses. (New, InProgress, Dismissed, Resolved are now supported) |
 **on_poll_playbook_alert_start_time** | optional | string | Poll playbook alerts created after (date in ISO format: 2022-12-01T11:00:00+00) |
 **on_poll_leaked_credentials_domains** | optional | string | Comma-separated list of domains to be searched for leaked credentials (maximum 200 domains). You consent to pulling and storing identity and credential data in the system. |
@@ -1285,7 +1285,7 @@ Read only: **True**
 
 PARAMETER | REQUIRED | DESCRIPTION | TYPE | CONTAINS
 --------- | -------- | ----------- | ---- | --------
-**category** | optional | Playbook alert category (cyber_vulnerability, domain_abuse, code_repo_leakage) | string | |
+**category** | optional | Playbook alert category (cyber_vulnerability, domain_abuse, code_repo_leakage, malicious_sites) | string | |
 **status** | optional | Playbook alert status | string | |
 **priority** | optional | Playbook alert priority | string | |
 **from_date** | optional | Created after (date in ISO format: 2022-12-01T11:00:00+00) | string | |
@@ -1390,6 +1390,20 @@ action_result.data.\*.panel_evidence_summary.resolved_records_list.\*.risk_score
 action_result.data.\*.panel_evidence_summary.screenshots.\*.created_time | string | | |
 action_result.data.\*.panel_evidence_summary.screenshots.\*.image_id | string | | |
 action_result.data.\*.panel_evidence_summary.screenshots.\*.tag | string | | |
+action_result.data.\*.category | string | | |
+action_result.data.\*.panel_evidence_summary.attackers.\*.attacker | string | | |
+action_result.data.\*.panel_evidence_summary.attackers.\*.cause | string | | |
+action_result.data.\*.panel_evidence_summary.attackers.\*.priority | string | | |
+action_result.data.\*.panel_evidence_summary.attackers.\*.assessments.\*.name | string | | |
+action_result.data.\*.panel_evidence_summary.attackers.\*.assessments.\*.priority | string | | |
+action_result.data.\*.panel_evidence_summary.attackers.\*.assets.\*.type | string | | |
+action_result.data.\*.panel_evidence_summary.attackers.\*.assets.\*.company_id | string | | |
+action_result.data.\*.panel_evidence_summary.attackers.\*.assets.\*.logotype_id | string | | |
+action_result.data.\*.panel_evidence_summary.attackers.\*.logotypes.\*.url | string | | |
+action_result.data.\*.panel_evidence_summary.attackers.\*.logotypes.\*.is_high_interest | boolean | | |
+action_result.data.\*.panel_evidence_summary.attackers.\*.screenshots.\*.image_id | string | | |
+action_result.data.\*.panel_evidence_summary.attackers.\*.screenshots.\*.tag | string | | |
+action_result.data.\*.panel_evidence_summary.attackers.\*.screenshots.\*.created | string | | |
 action_result.data.\*.panel_evidence_whois.body.\* | string | | |
 action_result.data.\*.panel_log.action_priority | string | | |
 action_result.data.\*.panel_log.actor_id | string | | |
