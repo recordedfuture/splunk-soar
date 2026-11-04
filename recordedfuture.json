@@ -118,7 +118,7 @@
         "on_poll_playbook_alert_type": {
             "data_type": "string",
             "order": 15,
-            "description": "Comma-separated list of Playbook alert types. (domain_abuse, cyber_vulnerability, code_repo_leakage, malicious_sites are supported)"
+            "description": "Comma-separated list of Playbook alert types. (domain_abuse, cyber_vulnerability, code_repo_leakage, malicious_sites, identity_novel_exposures, third_party_risk, malware_report, dark_web, socmed_impersonation are supported)"
         },
         "ph6": {
             "data_type": "ph",
@@ -5921,7 +5921,7 @@
             "read_only": true,
             "parameters": {
                 "category": {
-                    "description": "Playbook alert category (cyber_vulnerability, domain_abuse, code_repo_leakage, malicious_sites)",
+                    "description": "Playbook alert category (cyber_vulnerability, domain_abuse, code_repo_leakage, malicious_sites, identity_novel_exposures, third_party_risk, malware_report, dark_web, socmed_impersonation)",
                     "data_type": "string",
                     "order": 0
                 },
