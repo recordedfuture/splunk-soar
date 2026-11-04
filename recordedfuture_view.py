@@ -21,7 +21,7 @@
 import os
 import re
 from datetime import datetime
-from urllib.parse import urlsplit
+from urllib.parse import urlsplit, urlunsplit
 
 from recordedfuture_consts import RF_PLAYBOOK_STATUS_MAP
 
@@ -48,6 +48,7 @@ PLAYBOOK_ALERT_CATEGORY_DISPLAY_MAPPING = {
     "identity_novel_exposures": "Novel Identity Exposure",
     "third_party_risk": "Third Party Risk",
     "malware_report": "Malware Report",
+    "dark_web": "Dark Web",
 }
 
 
@@ -69,6 +70,113 @@ def format_datetime_string(datetime_string):
         return datetime.fromisoformat(datetime_string).strftime("%Y-%m-%d, %H:%M")
     except (TypeError, ValueError):
         return datetime_string
+
+
+DEFANGED_URL_SCHEMES = {"https": "hxxps", "http": "hxxp"}
+
+# URL fields of the Dark Web mention details, across all detail types.
+DARK_WEB_DETAIL_URL_FIELDS = ("message_url", "incident_url", "market_url", "post_url")
+
+
+def defang_url(url):
+    """Make an adversary controlled URL unclickable, e.g. "https://t.me/a" -> "hxxps://t[.]me/a".
+
+    Only the scheme and the dots in the host change, so an analyst can still read and re-fang it.
+    """
+    if not url:
+        return ""
+    if "[.]" in url:
+        # Already defanged, e.g. when the same result is rendered again
+        return url
+    try:
+        scheme, netloc, path, query, fragment = urlsplit(url)
+    except ValueError:
+        return url.replace(".", "[.]")
+    if not netloc:
+        return url.replace(".", "[.]")
+    return urlunsplit((DEFANGED_URL_SCHEMES.get(scheme, scheme), netloc.replace(".", "[.]"), path, query, fragment))
+
+
+# Heading and labelled rows for each Dark Web mention type, as (label, field, kind).
+DARK_WEB_MENTION_HEADINGS = {
+    "telegram_mention": "Channel Details",
+    "ransomware_extortion_site": "Incident Details",
+    "dark_web_forum_mention": "Forum Details",
+    "dark_web_market_mention": "Listing Details",
+}
+DARK_WEB_MENTION_ROWS = {
+    "telegram_mention": (
+        ("Telegram Channel", "telegram_channel_title", "text"),
+        ("Source", "source", "entity"),
+        ("Post", "post", "text"),
+        ("Publish Date", "publish_date", "date"),
+        ("Message URL", "message_url", "url"),
+    ),
+    "ransomware_extortion_site": (
+        ("Ransomware Group", "ransomware_group", "entity"),
+        ("Source", "source", "entity"),
+        ("Post Details", "post_details", "text"),
+        ("Post Date", "post_date", "date"),
+        ("Incident URL", "incident_url", "url"),
+    ),
+    "dark_web_forum_mention": (
+        ("Post Title", "post_title", "text"),
+        ("Source", "source", "entity"),
+        ("Post", "post", "text"),
+        ("Post Date", "post_date", "date"),
+        ("Post URL", "post_url", "url"),
+    ),
+    "dark_web_market_mention": (
+        ("Listing Title", "listing_title", "text"),
+        ("Source", "source", "entity"),
+        ("Listing Content", "listing_content", "text"),
+        ("Post Date", "post_date", "date"),
+        ("Market URL", "market_url", "url"),
+        ("Post URL", "post_url", "url"),
+    ),
+}
+
+
+def _dark_web_mention_value(value, kind):
+    if not value:
+        return ""
+    if kind == "entity":
+        return (value.get("name") or value.get("entity_id") or "") if isinstance(value, dict) else str(value)
+    if kind == "date":
+        return format_datetime_string(value)
+    if kind == "url":
+        return defang_url(value)
+    return value
+
+
+def format_dark_web_details(data):
+    """Turn the mention details into labelled rows for its type, and defang every URL in the
+    alert, since they all point at adversary infrastructure."""
+    summary = data.get("panel_evidence_summary") or {}
+    details = summary.get("details") or {}
+    mention_type = details.get("type") or "unknown"
+    rows = DARK_WEB_MENTION_ROWS.get(mention_type)
+    summary["mention"] = {
+        "type": mention_type,
+        "supported": rows is not None,
+        "heading": DARK_WEB_MENTION_HEADINGS.get(mention_type, "Mention Details"),
+        "rows": [
+            {"label": label, "value": _dark_web_mention_value(details.get(field), kind), "long": kind == "text"}
+            for label, field, kind in rows or ()
+        ],
+    }
+    for field in DARK_WEB_DETAIL_URL_FIELDS:
+        if details.get(field):
+            details[field] = defang_url(details[field])
+    analysis_report = data.get("panel_analysis_report") or {}
+    if analysis_report.get("created"):
+        analysis_report["created"] = format_datetime_string(analysis_report["created"])
+    cached_content = data.get("panel_cached_content") or {}
+    if cached_content.get("original_url"):
+        cached_content["original_url"] = defang_url(cached_content["original_url"])
+    if cached_content.get("downloaded"):
+        cached_content["downloaded"] = format_datetime_string(cached_content["downloaded"])
+    return data
 
 
 THIRD_PARTY_RISK_LEVELS = {1: "Informational", 2: "Moderate", 3: "High"}
@@ -144,6 +252,9 @@ def format_domain_abuse_details_result(result):
 
     if data.get("category") == "third_party_risk":
         data = format_third_party_risk_details(data)
+
+    if data.get("category") == "dark_web":
+        data = format_dark_web_details(data)
 
     retval["data"] = data
     return retval
