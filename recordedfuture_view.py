@@ -49,6 +49,7 @@ PLAYBOOK_ALERT_CATEGORY_DISPLAY_MAPPING = {
     "third_party_risk": "Third Party Risk",
     "malware_report": "Malware Report",
     "dark_web": "Dark Web",
+    "socmed_impersonation": "Social Media Impersonation",
 }
 
 
@@ -211,6 +212,26 @@ def format_third_party_risk_details(data):
     return data
 
 
+def format_socmed_impersonation_details(data):
+    """Prepare the impersonating profile for display: the profile URL is defanged, since the
+    account is under adversary control, and the platform falls back to its entity id."""
+    summary = data.get("panel_evidence_summary") or {}
+    # profile_url_id is either a bare URL or a "url:" entity id
+    summary["profile_url"] = defang_url((summary.get("profile_url_id") or "").removeprefix("url:"))
+    summary["platform"] = summary.get("platform_name") or summary.get("platform_id") or ""
+    summary["takedown_suggested"] = any(
+        (assessment.get("name") or "").startswith("Suggested Takedown") for assessment in summary.get("assessments") or []
+    )
+    for asset in summary.get("matched_assets") or []:
+        asset["label"] = asset.get("name") or asset.get("entity_id") or ""
+    if summary.get("created_date"):
+        summary["created_date"] = format_datetime_string(summary["created_date"])
+    # 0 and False are meaningful here, so missing values are told apart from them
+    for field in ("number_of_followers", "number_of_posts", "private_profile"):
+        summary.setdefault(field, None)
+    return data
+
+
 def format_identity_novel_exposures_details(data):
     """Add the values the Identity widget shows but the API does not provide directly."""
     summary = data.get("panel_evidence_summary") or {}
@@ -255,6 +276,9 @@ def format_domain_abuse_details_result(result):
 
     if data.get("category") == "dark_web":
         data = format_dark_web_details(data)
+
+    if data.get("category") == "socmed_impersonation":
+        data = format_socmed_impersonation_details(data)
 
     retval["data"] = data
     return retval
