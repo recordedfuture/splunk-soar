@@ -21,12 +21,14 @@
 import os
 import re
 from datetime import datetime
+from urllib.parse import urlsplit
 
 from recordedfuture_consts import RF_PLAYBOOK_STATUS_MAP
 
 
 APP_URL = "https://app.recordedfuture.com/live/sc/entity/%s%%3A%s"
 VULN_APP_URL = "https://app.recordedfuture.com/live/sc/entity/%s"
+PLAYBOOK_ALERT_PORTAL_URL = "https://app.recordedfuture.com/portal/playbook-alerts/%s"
 
 ENTITY_LIST_STATUS_VALUE_TO_LITERAL_MAPPING = {
     "ready": "Ready (no pending updates)",
@@ -43,6 +45,7 @@ PLAYBOOK_ALERT_CATEGORY_DISPLAY_MAPPING = {
     "cyber_vulnerability": "Vulnerability",
     "code_repo_leakage": "Code Repo Leakage",
     "malicious_sites": "Malicious Sites",
+    "identity_novel_exposures": "Novel Identity Exposure",
 }
 
 
@@ -61,9 +64,25 @@ def load_shared_css():
 
 def format_datetime_string(datetime_string):
     try:
-        return datetime.strptime(datetime_string, "%Y-%m-%dT%H:%M:%S.%f%z").strftime("%Y-%m-%d, %H:%M")
-    except ValueError:
+        return datetime.fromisoformat(datetime_string).strftime("%Y-%m-%d, %H:%M")
+    except (TypeError, ValueError):
         return datetime_string
+
+
+def format_identity_novel_exposures_details(data):
+    """Add the values the Identity widget shows but the API does not provide directly."""
+    summary = data.get("panel_evidence_summary") or {}
+    if summary.get("authorization_url"):
+        try:
+            summary["authorization_domain"] = urlsplit(summary["authorization_url"]).hostname or ""
+        except ValueError:
+            summary["authorization_domain"] = ""
+    exposed_secret = summary.get("exposed_secret") or {}
+    exposed_secret["hash_algorithms"] = sorted({h["algorithm"] for h in exposed_secret.get("hashes") or [] if h.get("algorithm")})
+    compromised_host = summary.get("compromised_host") or {}
+    if compromised_host.get("exfiltration_date"):
+        compromised_host["exfiltration_date"] = format_datetime_string(compromised_host["exfiltration_date"])
+    return data
 
 
 def format_domain_abuse_details_result(result):
@@ -82,6 +101,12 @@ def format_domain_abuse_details_result(result):
     panel_evidence_whois = data.get("panel_evidence_whois", {})
     if panel_evidence_whois and not isinstance(panel_evidence_whois.get("body"), list):
         panel_evidence_whois["body"] = []
+
+    if data.get("playbook_alert_id"):
+        data["portal_url"] = PLAYBOOK_ALERT_PORTAL_URL % data["playbook_alert_id"]
+
+    if data.get("category") == "identity_novel_exposures":
+        data = format_identity_novel_exposures_details(data)
 
     retval["data"] = data
     return retval
