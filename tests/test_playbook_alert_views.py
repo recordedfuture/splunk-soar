@@ -197,3 +197,110 @@ def test_identity_novel_exposures_never_shows_a_clear_text_value(engine):
 )
 def test_format_datetime_string(value, expected):
     assert format_datetime_string(value) == expected
+
+
+def make_third_party_risk_alert(assessments):
+    alert = make_alert("third_party_risk", "Third Party Risk", summary={"assessments": assessments})
+    alert["panel_status"].update(
+        {
+            "targets": [{"name": "Acme Corp"}],
+            "tags": ["Critical Supplier"],
+            "risk_score": 80,
+            "assignee_name": "Aaron Soehnen",
+            "alert_rule": {"name": "Third parties"},
+        }
+    )
+    return alert
+
+
+def tpr_assessment(evidence_type, data, level=3, added="2026-11-01T00:00:00Z", metadata=None):
+    assessment = {
+        "risk_rule": f"Rule for {evidence_type}",
+        "level": level,
+        "added": added,
+        "evidence": {"type": evidence_type, "summary": f"Summary of {evidence_type}", "data": data},
+    }
+    if metadata:
+        assessment["metadata"] = metadata
+    return assessment
+
+
+def test_third_party_risk_details(engine):
+    assert PLAYBOOK_ALERT_CATEGORY_DISPLAY_MAPPING["third_party_risk"] == "Third Party Risk"
+    html = render_details(
+        engine,
+        make_third_party_risk_alert(
+            [
+                tpr_assessment(
+                    "reference",
+                    [{"title": "Acme breached", "source": "News", "document_url": "https://news.example/a", "fragment": "frag"}],
+                    metadata={"assessment_description": "A breach was reported", "action_to_consider": "Contact the vendor"},
+                )
+            ]
+        ),
+    )
+    assert_rendered(
+        html,
+        "Third Party Risk",
+        "Subject name",
+        "Critical Supplier",
+        "Acme Corp",
+        "Aaron Soehnen",
+        "Third parties",
+        'href="https://app.recordedfuture.com/portal/playbook-alerts/task:test"',
+        "rf-priority-level-High",
+        "Security Incidents",
+        "2026-11-01, 00:00",
+        "Rule for reference",
+        "Summary of reference",
+        "A breach was reported",
+        "Contact the vendor",
+        "Acme breached",
+        "https://news.example/a",
+    )
+
+
+@pytest.mark.parametrize(
+    "evidence_type, data, texts",
+    [
+        (
+            "insikt_note",
+            [{"id": "doc:1", "title": "Note title", "topic": "Topic", "fragment": "Note text"}],
+            ["Note title", "Note text", "doc:1"],
+        ),
+        (
+            "hosts_communication",
+            [{"recent_timestamp": "2026-11-02T00:00:00Z", "malware_family": "Emotet", "client_ip_address": "198.51.100.1"}],
+            ["Malicious Network Activity", "2026-11-02, 00:00", "Emotet", "198.51.100.1", "N/A"],
+        ),
+        ("ip_rule", [{"name": "Recent C2", "criticality": 3, "number_of_ip_addresses": 4}], ["Recent C2", "4 IPs"]),
+        ("cyber_trend", [{"date": "2026-11-03T00:00:00Z", "criticality": 2, "number_of_references": 7}], ["Cyber Trends", "7 references"]),
+        (
+            "exposed_credentials",
+            [{"email": "bob@acme.example", "password": "$2y****", "document_title": "Dump", "document_publish_date": "2026-11-04T00:00:00Z"}],
+            ["Exposed Credentials", "bob@acme.example", "$2y****", "Dump", "2026-11-04, 00:00"],
+        ),
+        ("brand_new_type", [], ["Unsupported evidence type: brand_new_type"]),
+    ],
+)
+def test_third_party_risk_evidence_types(engine, evidence_type, data, texts):
+    assert_rendered(render_details(engine, make_third_party_risk_alert([tpr_assessment(evidence_type, data)])), *texts)
+
+
+def test_third_party_risk_level_names_and_newest_first(engine):
+    html = render_details(
+        engine,
+        make_third_party_risk_alert(
+            [
+                tpr_assessment("summary_string", [], level=1, added="2026-10-01T00:00:00Z"),
+                tpr_assessment("ip_rule", [], level=2, added="2026-11-01T00:00:00Z"),
+            ]
+        ),
+    )
+    assert html.index("Rule for ip_rule") < html.index("Rule for summary_string")
+    assert_rendered(html, "rf-priority-level-Moderate", "rf-priority-level-Informational")
+    assert "Unsupported evidence type" not in html
+
+
+def test_third_party_risk_without_assessments(engine):
+    assert_rendered(render_details(engine, make_third_party_risk_alert([])), "No assessments")
