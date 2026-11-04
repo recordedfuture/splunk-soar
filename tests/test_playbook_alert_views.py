@@ -31,6 +31,7 @@ from django.template import Context, Engine
 
 from recordedfuture_view import (
     PLAYBOOK_ALERT_CATEGORY_DISPLAY_MAPPING,
+    defang_url,
     format_datetime_string,
     playbook_alert_details_results,
     playbook_alert_search_results,
@@ -339,3 +340,181 @@ def test_malware_report_details(engine):
 def test_malware_report_details_fall_back_to_case_rule_label(engine):
     html = render_details(engine, make_alert("malware_report", "Rule from label"))
     assert_rendered(html, "Rule from label")
+
+
+def make_dark_web_alert(details):
+    alert = make_alert(
+        "dark_web",
+        "Dark Web Brand",
+        summary={
+            "matched_assets": [{"type": "brand", "entity_id": "x", "name": "Acme Corp"}, {"type": "domain", "entity_id": "idn:acme.example"}],
+            "assessments": [{"name": "Credential Sale", "criticality": "High"}],
+            "details": details,
+        },
+        panel_triage={"rationale": "Initial access broker.", "assessment": {"name": "Likely Malicious", "criticality": "Moderate"}},
+        panel_analysis_report={
+            "title": "Analyst report",
+            "source": {"entity_id": "src:1", "name": "Insikt Group"},
+            "created": "2026-11-02T00:00:00Z",
+            "content": "Report body",
+        },
+        panel_cached_content={
+            "title": "Cached thread",
+            "downloaded": "2026-11-03T00:00:00Z",
+            "original_url": "http://forum.example.onion/t/1",
+            "content": "Cached body <script>alert(1)</script>",
+        },
+    )
+    alert["panel_status"].update({"assignee_name": "Aaron Soehnen", "alert_rule": {"name": "Dark web brand"}})
+    return alert
+
+
+FORUM_DETAILS = {
+    "type": "dark_web_forum_mention",
+    "source": {"entity_id": "s", "name": "XSS Forum"},
+    "post_title": "Selling Acme Corp VPN access",
+    "post": "DM for details",
+    "post_date": "2026-11-01T00:00:00Z",
+    "post_url": "https://forum.example.onion/t/1?p=2",
+}
+
+
+def test_dark_web_details(engine):
+    assert PLAYBOOK_ALERT_CATEGORY_DISPLAY_MAPPING["dark_web"] == "Dark Web"
+    html = render_details(engine, make_dark_web_alert(FORUM_DETAILS))
+    assert_rendered(
+        html,
+        "Dark Web",
+        "Acme Corp (brand)",
+        "idn:acme.example (domain)",
+        "rf-priority-level-High",
+        "Credential Sale",
+        "Aaron Soehnen",
+        "Dark web brand",
+        'href="https://app.recordedfuture.com/portal/playbook-alerts/task:test"',
+        "rf-priority-level-Moderate",
+        "Likely Malicious",
+        "Initial access broker.",
+        "Analyst report",
+        "Insikt Group",
+        "2026-11-02, 00:00",
+        "hxxp://forum[.]example[.]onion/t/1",
+        "2026-11-03, 00:00",
+        "Cached body &lt;script&gt;",
+    )
+    assert "https://forum.example.onion" not in html
+    assert "<script>" not in html
+
+
+def mention_rows(html):
+    """(label, value) pairs of the rendered mention rows."""
+    rows = {}
+    for label, value in re.findall(r'row-title">([^<]+)</div>\s*<div[^>]*>([^<]*)</div>', html):
+        rows.setdefault(label, value.strip())
+    return rows
+
+
+@pytest.mark.parametrize(
+    "details, heading, expected",
+    [
+        (
+            FORUM_DETAILS,
+            "Forum Details",
+            {
+                "Post Title": "Selling Acme Corp VPN access",
+                "Source": "XSS Forum",
+                "Post": "DM for details",
+                "Post Date": "2026-11-01, 00:00",
+                "Post URL": "hxxps://forum[.]example[.]onion/t/1?p=2",
+            },
+        ),
+        (
+            {
+                "type": "telegram_mention",
+                "telegram_channel_title": "Leaks channel",
+                "source": {"entity_id": "s"},
+                "post": "msg",
+                "publish_date": "2026-11-01T00:00:00Z",
+                "message_url": "https://t.me/leaks/1",
+            },
+            "Channel Details",
+            {
+                "Telegram Channel": "Leaks channel",
+                "Source": "s",
+                "Post": "msg",
+                "Publish Date": "2026-11-01, 00:00",
+                "Message URL": "hxxps://t[.]me/leaks/1",
+            },
+        ),
+        (
+            {
+                "type": "ransomware_extortion_site",
+                "ransomware_group": {"entity_id": "g", "name": "LockBit"},
+                "source": {"entity_id": "s", "name": "LockBit blog"},
+                "post_details": "Data posted",
+                "post_date": "2026-11-01T00:00:00Z",
+                "incident_url": "http://lock.onion/acme",
+            },
+            "Incident Details",
+            {
+                "Ransomware Group": "LockBit",
+                "Source": "LockBit blog",
+                "Post Details": "Data posted",
+                "Post Date": "2026-11-01, 00:00",
+                "Incident URL": "hxxp://lock[.]onion/acme",
+            },
+        ),
+        (
+            {
+                "type": "dark_web_market_mention",
+                "source": {"entity_id": "s", "name": "Market"},
+                "listing_title": "Acme logins",
+                "post_date": "2026-11-01T00:00:00Z",
+                "market_url": "http://market.onion",
+            },
+            "Listing Details",
+            {
+                "Listing Title": "Acme logins",
+                "Source": "Market",
+                "Listing Content": "N/A",
+                "Post Date": "2026-11-01, 00:00",
+                "Market URL": "hxxp://market[.]onion",
+                "Post URL": "N/A",
+            },
+        ),
+    ],
+)
+def test_dark_web_mention_types(engine, details, heading, expected):
+    html = render_details(engine, make_dark_web_alert(details))
+    assert_rendered(html, heading)
+    rows = mention_rows(html)
+    for label, value in expected.items():
+        assert rows[label] == value, label
+    assert "{&#x27;entity_id&#x27;" not in html
+
+
+def test_dark_web_rendering_twice_does_not_defang_twice(engine):
+    alert = make_dark_web_alert(dict(FORUM_DETAILS))
+    render_details(engine, alert)
+    rows = mention_rows(render_details(engine, alert))
+    assert rows["Post URL"] == "hxxps://forum[.]example[.]onion/t/1?p=2"
+
+
+def test_dark_web_unsupported_mention_type(engine):
+    html = render_details(engine, make_dark_web_alert({"type": "brand_new_mention"}))
+    assert_rendered(html, "Mention Details", "Unsupported mention type: brand_new_mention")
+
+
+@pytest.mark.parametrize(
+    "url, expected",
+    [
+        ("https://t.me/chat/1", "hxxps://t[.]me/chat/1"),
+        ("hxxps://t[.]me/chat/1", "hxxps://t[.]me/chat/1"),
+        ("ftp://a.b/c.d", "ftp://a[.]b/c.d"),
+        ("not a url.example", "not a url[.]example"),
+        ("", ""),
+        (None, ""),
+    ],
+)
+def test_defang_url(url, expected):
+    assert defang_url(url) == expected

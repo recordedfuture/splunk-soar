@@ -764,6 +764,132 @@
               {% endfor %}
             {% endwith %}
           </div>
+        {% elif result.data.category == "dark_web" %}
+          <h3 class="rf-playbook-alert-panel-title">Dark Web</h3>
+          <div class="rf-alert-panel">
+            <div class="rf-playbook-alert-data-row">
+              <div class="rf-playbook-alert-data-row-title">Subject</div>
+              <h5>{{ result.data.panel_status.entity_name }}</h5>
+            </div>
+            <div class="rf-playbook-alert-data-row">
+              <div class="rf-playbook-alert-data-row-title">Matched assets</div>
+              {% for asset in result.data.panel_evidence_summary.matched_assets %}
+                <div class="rf-chip-box">{{ asset.name|default:asset.entity_id }} ({{ asset.type }})</div>
+              {% endfor %}
+            </div>
+            <div class="rf-playbook-alert-data-row">
+              <div class="rf-playbook-alert-data-row-title">Assessments</div>
+              {% for assessment in result.data.panel_evidence_summary.assessments %}
+                <div class="rf-chip-box rf-playbook-alert-data-row"
+                     style="gap: 5px;
+                            margin: 0">
+                  <div class="rf-circle rf-priority-level-{{ assessment.criticality }}"></div>
+                  <div>{{ assessment.name }}</div>
+                </div>
+              {% endfor %}
+            </div>
+            <div class="rf-playbook-alert-data-row">
+              <div class="rf-playbook-alert-data-row-title">Status</div>
+              <div>{{ result.data.panel_status.status }}</div>
+            </div>
+            <div class="rf-playbook-alert-data-row">
+              <div class="rf-playbook-alert-data-row-title">Priority</div>
+              <div class="rf-playbook-alert-data-row" style="gap: 5px; margin: 0">
+                <div class="rf-circle rf-priority-level-{{ result.data.panel_status.priority }}"></div>
+                <div>{{ result.data.panel_status.priority }}</div>
+              </div>
+            </div>
+            <div class="rf-playbook-alert-data-row">
+              <div class="rf-playbook-alert-data-row-title">Assignee</div>
+              <div>{{ result.data.panel_status.assignee_name|default:"Unassigned" }}</div>
+            </div>
+            <div class="rf-playbook-alert-data-row">
+              <div class="rf-playbook-alert-data-row-title">Created</div>
+              <div>{{ result.data.panel_status.created }}</div>
+            </div>
+            <div class="rf-playbook-alert-data-row">
+              <div class="rf-playbook-alert-data-row-title">Updated</div>
+              <div>{{ result.data.panel_status.updated }}</div>
+            </div>
+            <div class="rf-playbook-alert-data-row">
+              <div class="rf-playbook-alert-data-row-title">Alert Rule</div>
+              <div>{{ result.data.panel_status.alert_rule.name }}</div>
+            </div>
+            {% if result.data.portal_url %}
+              <div class="rf-playbook-alert-data-row">
+                <a href="{{ result.data.portal_url }}"
+                   target="_blank"
+                   rel="noopener noreferrer">Open Alert in Recorded Future Portal</a>
+              </div>
+            {% endif %}
+          </div>
+          {% if result.data.panel_triage %}
+            <h3 class="rf-playbook-alert-panel-title">AI Triage</h3>
+            <div class="rf-alert-panel">
+              {% if result.data.panel_triage.assessment %}
+                <div class="rf-chip-box rf-playbook-alert-data-row"
+                     style="gap: 5px;
+                            margin: 0;
+                            width: fit-content">
+                  <div class="rf-circle rf-priority-level-{{ result.data.panel_triage.assessment.criticality }}"></div>
+                  <div>{{ result.data.panel_triage.assessment.name }}</div>
+                </div>
+              {% endif %}
+              <p>{{ result.data.panel_triage.rationale }}</p>
+            </div>
+          {% endif %}
+          {% with mention=result.data.panel_evidence_summary.mention %}
+            <h3 class="rf-playbook-alert-panel-title">{{ mention.heading }}</h3>
+            <div class="rf-alert-panel">
+              {% if mention.supported %}
+                {% for row in mention.rows %}
+                  <div class="rf-playbook-alert-data-row" style="align-items: flex-start">
+                    <div class="rf-playbook-alert-data-row-title">{{ row.label }}</div>
+                    {% if row.long %}
+                      <div style="white-space: pre-wrap; word-break: break-word;">{{ row.value|default:"N/A" }}</div>
+                    {% else %}
+                      <div style="word-break: break-all;">{{ row.value|default:"N/A" }}</div>
+                    {% endif %}
+                  </div>
+                {% endfor %}
+                <p>URLs are defanged and not clickable. Use the portal link above to view the original content.</p>
+              {% else %}
+                <div>Unsupported mention type: {{ mention.type }}</div>
+              {% endif %}
+            </div>
+          {% endwith %}
+          {% if result.data.panel_analysis_report %}
+            <h3 class="rf-playbook-alert-panel-title">Analysis Report</h3>
+            <div class="rf-alert-panel">
+              <h5>{{ result.data.panel_analysis_report.title }}</h5>
+              <div class="rf-playbook-alert-data-row">
+                <div class="rf-playbook-alert-data-row-title">Source</div>
+                <div>
+                  {{ result.data.panel_analysis_report.source.name|default:result.data.panel_analysis_report.source.entity_id }}
+                </div>
+              </div>
+              <div class="rf-playbook-alert-data-row">
+                <div class="rf-playbook-alert-data-row-title">Created</div>
+                <div>{{ result.data.panel_analysis_report.created }}</div>
+              </div>
+              <p style="white-space: pre-wrap">{{ result.data.panel_analysis_report.content }}</p>
+            </div>
+          {% endif %}
+          {% if result.data.panel_cached_content %}
+            <h3 class="rf-playbook-alert-panel-title">Cached Content</h3>
+            <div class="rf-alert-panel">
+              <h5>{{ result.data.panel_cached_content.title }}</h5>
+              <div class="rf-playbook-alert-data-row">
+                <div class="rf-playbook-alert-data-row-title">Original URL</div>
+                <div>{{ result.data.panel_cached_content.original_url|default:"N/A" }}</div>
+              </div>
+              <div class="rf-playbook-alert-data-row">
+                <div class="rf-playbook-alert-data-row-title">Downloaded</div>
+                <div>{{ result.data.panel_cached_content.downloaded }}</div>
+              </div>
+              <p style="white-space: pre-wrap">{{ result.data.panel_cached_content.content }}</p>
+            </div>
+          {% endif %}
         {% endif %}
       {% endfor %}
     </div>
