@@ -709,6 +709,61 @@
           {% empty %}
             <div class="rf-alert-panel">No assessments</div>
           {% endfor %}
+        {% elif result.data.category == "malware_report" %}
+          <h3 class="rf-playbook-alert-panel-title">Malware Report</h3>
+          <div class="rf-alert-panel">
+            <div class="rf-playbook-alert-data-row">
+              <div class="rf-playbook-alert-data-row-title">Subject</div>
+              <h5>{{ result.data.panel_evidence_summary.notification_title }}</h5>
+            </div>
+            <div class="rf-playbook-alert-data-row">
+              <div class="rf-playbook-alert-data-row-title">Alert rule</div>
+              <div>{{ result.data.panel_status.alert_rule.name|default:result.data.panel_status.case_rule_label }}</div>
+            </div>
+            <div class="rf-playbook-alert-data-row">
+              <div class="rf-playbook-alert-data-row-title">Status</div>
+              <div>{{ result.data.panel_status.status }}</div>
+            </div>
+            <div class="rf-playbook-alert-data-row">
+              <div class="rf-playbook-alert-data-row-title">Priority</div>
+              <div class="rf-playbook-alert-data-row" style="gap: 5px; margin: 0">
+                <div class="rf-circle rf-priority-level-{{ result.data.panel_status.priority }}"></div>
+                <div>{{ result.data.panel_status.priority }}</div>
+              </div>
+            </div>
+            <div class="rf-playbook-alert-data-row">
+              <div class="rf-playbook-alert-data-row-title">Created</div>
+              <div>{{ result.data.panel_status.created }}</div>
+            </div>
+          </div>
+          <h3 class="rf-playbook-alert-panel-title">Evidence summary</h3>
+          <div class="rf-alert-panel">
+            {% with summary=result.data.panel_evidence_summary %}
+              <div class="rf-playbook-alert-data-row">
+                <div class="rf-playbook-alert-data-row-title">Reports</div>
+                <div>
+                  {{ summary.number_of_reports }}
+                  {% if summary.report_limit_reached %}(report limit reached){% endif %}
+                </div>
+              </div>
+              <div class="rf-playbook-alert-data-row">
+                <div class="rf-playbook-alert-data-row-title">Detected malware</div>
+                {% for malware in summary.detected_malwares %}<div class="rf-chip-box">{{ malware.name }} ({{ malware.count }})</div>{% endfor %}
+              </div>
+              <div class="rf-playbook-alert-data-row">
+                <div class="rf-playbook-alert-data-row-title">Sandbox scores</div>
+                {% for score in summary.sandbox_scores %}<div class="rf-chip-box">{{ score.score }}: {{ score.count }}</div>{% endfor %}
+              </div>
+              <h5>Matched hashes</h5>
+              {% for matched in summary.matched_hashes %}
+                <div class="rf-playbook-alert-data-row">
+                  <div>{{ matched.sha256 }}</div>
+                  <div>Risk score: {{ matched.risk_score }}</div>
+                  <div>Reports: {{ matched.report_overviews|length }}</div>
+                </div>
+              {% endfor %}
+            {% endwith %}
+          </div>
         {% endif %}
       {% endfor %}
     </div>

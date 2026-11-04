@@ -47,6 +47,7 @@ PLAYBOOK_ALERT_CATEGORY_DISPLAY_MAPPING = {
     "malicious_sites": "Malicious Sites",
     "identity_novel_exposures": "Novel Identity Exposure",
     "third_party_risk": "Third Party Risk",
+    "malware_report": "Malware Report",
 }
 
 

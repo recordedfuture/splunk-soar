@@ -304,3 +304,38 @@ def test_third_party_risk_level_names_and_newest_first(engine):
 
 def test_third_party_risk_without_assessments(engine):
     assert_rendered(render_details(engine, make_third_party_risk_alert([])), "No assessments")
+
+
+def test_malware_report_details(engine):
+    assert PLAYBOOK_ALERT_CATEGORY_DISPLAY_MAPPING["malware_report"] == "Malware Report"
+    sha256 = "1012529307d89ecb678d0b5f1495db20a21ccfb4ae0726358cb32817ca0dd540"  # pragma: allowlist secret
+    alert = make_alert(
+        "malware_report",
+        "Ransomware samples",
+        summary={
+            "notification_title": "LockBit sandbox reports",
+            "number_of_reports": 2,
+            "report_limit_reached": True,
+            "matched_hashes": [{"sha256": sha256, "risk_score": 89, "report_overviews": [{}, {}]}],
+            "detected_malwares": [{"name": "LockBit", "count": 2}],
+            "sandbox_scores": [{"score": 10, "count": 2}],
+        },
+    )
+    alert["panel_status"]["alert_rule"] = {"name": "Ransomware samples"}
+    html = render_details(engine, alert)
+    assert_rendered(
+        html,
+        "Malware Report",
+        "LockBit sandbox reports",
+        "Ransomware samples",
+        "report limit reached",
+        "LockBit (2)",
+        sha256,
+        "Risk score: 89",
+        "Reports: 2",
+    )
+
+
+def test_malware_report_details_fall_back_to_case_rule_label(engine):
+    html = render_details(engine, make_alert("malware_report", "Rule from label"))
+    assert_rendered(html, "Rule from label")
