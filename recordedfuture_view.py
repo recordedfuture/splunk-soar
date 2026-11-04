@@ -46,6 +46,7 @@ PLAYBOOK_ALERT_CATEGORY_DISPLAY_MAPPING = {
     "code_repo_leakage": "Code Repo Leakage",
     "malicious_sites": "Malicious Sites",
     "identity_novel_exposures": "Novel Identity Exposure",
+    "third_party_risk": "Third Party Risk",
 }
 
 
@@ -67,6 +68,38 @@ def format_datetime_string(datetime_string):
         return datetime.fromisoformat(datetime_string).strftime("%Y-%m-%d, %H:%M")
     except (TypeError, ValueError):
         return datetime_string
+
+
+THIRD_PARTY_RISK_LEVELS = {1: "Informational", 2: "Moderate", 3: "High"}
+THIRD_PARTY_RISK_EVIDENCE_LABELS = {
+    "insikt_note": "Security Incidents",
+    "reference": "Security Incidents",
+    "summary_string": "Security Incidents",
+    "hosts_communication": "Malicious Network Activity",
+    "ip_rule": "Malicious Network Activity",
+    "cyber_trend": "Cyber Trends",
+    "exposed_credentials": "Exposed Credentials",
+}
+THIRD_PARTY_RISK_EVIDENCE_DATE_FIELDS = ("published", "recent_timestamp", "date", "document_publish_date")
+
+
+def format_third_party_risk_details(data):
+    """Name the levels and evidence types, format dates and list assessments newest first,
+    as the portal does."""
+    summary = data.get("panel_evidence_summary") or {}
+    assessments = summary.get("assessments") or []
+    assessments.sort(key=lambda assessment: assessment.get("added") or "", reverse=True)
+    for assessment in assessments:
+        assessment["level_name"] = THIRD_PARTY_RISK_LEVELS.get(assessment.get("level"), "Informational")
+        assessment["added"] = format_datetime_string(assessment.get("added"))
+        evidence = assessment.get("evidence") or {}
+        evidence["label"] = THIRD_PARTY_RISK_EVIDENCE_LABELS.get(evidence.get("type"), "Other")
+        for item in evidence.get("data") or []:
+            if isinstance(item, dict):
+                for field in THIRD_PARTY_RISK_EVIDENCE_DATE_FIELDS:
+                    if item.get(field):
+                        item[field] = format_datetime_string(item[field])
+    return data
 
 
 def format_identity_novel_exposures_details(data):
@@ -107,6 +140,9 @@ def format_domain_abuse_details_result(result):
 
     if data.get("category") == "identity_novel_exposures":
         data = format_identity_novel_exposures_details(data)
+
+    if data.get("category") == "third_party_risk":
+        data = format_third_party_risk_details(data)
 
     retval["data"] = data
     return retval

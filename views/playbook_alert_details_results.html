@@ -544,6 +544,171 @@
               <li>Review Malware Hunting Packages</li>
             </ul>
           </div>
+        {% elif result.data.category == "third_party_risk" %}
+          <h3 class="rf-playbook-alert-panel-title">Third Party Risk</h3>
+          <div class="rf-alert-panel">
+            <div class="rf-playbook-alert-data-row">
+              <div class="rf-playbook-alert-data-row-title">Subject</div>
+              <div class="rf-playbook-alert-data-row" style="gap: 5px; margin: 0">
+                <h5>{{ result.data.panel_status.entity_name }}</h5>
+                <div class="rf-circle rf-criticality-level-{{ result.data.panel_status.entity_criticality }}"></div>
+                <div>{{ result.data.panel_status.risk_score }}</div>
+              </div>
+            </div>
+            {% if result.data.panel_status.tags %}
+              <div class="rf-playbook-alert-data-row">
+                <div class="rf-playbook-alert-data-row-title">Tags</div>
+                {% for tag in result.data.panel_status.tags %}<div class="rf-chip-box">{{ tag }}</div>{% endfor %}
+              </div>
+            {% endif %}
+            <div class="rf-playbook-alert-data-row" style="align-items: flex-start">
+              <div class="rf-playbook-alert-data-row-title">Targets</div>
+              <div style="display: block;">
+                {% for target in result.data.panel_status.targets %}<div style="margin-bottom: 5px;">{{ target.name }}</div>{% endfor %}
+              </div>
+            </div>
+            <div class="rf-playbook-alert-data-row">
+              <div class="rf-playbook-alert-data-row-title">Status</div>
+              <div>{{ result.data.panel_status.status }}</div>
+            </div>
+            <div class="rf-playbook-alert-data-row">
+              <div class="rf-playbook-alert-data-row-title">Priority</div>
+              <div class="rf-playbook-alert-data-row" style="gap: 5px; margin: 0">
+                <div class="rf-circle rf-priority-level-{{ result.data.panel_status.priority }}"></div>
+                <div>{{ result.data.panel_status.priority }}</div>
+              </div>
+            </div>
+            <div class="rf-playbook-alert-data-row">
+              <div class="rf-playbook-alert-data-row-title">Assignee</div>
+              <div>{{ result.data.panel_status.assignee_name|default:"Unassigned" }}</div>
+            </div>
+            <div class="rf-playbook-alert-data-row">
+              <div class="rf-playbook-alert-data-row-title">Created</div>
+              <div>{{ result.data.panel_status.created }}</div>
+            </div>
+            <div class="rf-playbook-alert-data-row">
+              <div class="rf-playbook-alert-data-row-title">Updated</div>
+              <div>{{ result.data.panel_status.updated }}</div>
+            </div>
+            <div class="rf-playbook-alert-data-row">
+              <div class="rf-playbook-alert-data-row-title">Alert Rule</div>
+              <div>{{ result.data.panel_status.alert_rule.name }}</div>
+            </div>
+            {% if result.data.portal_url %}
+              <div class="rf-playbook-alert-data-row">
+                <a href="{{ result.data.portal_url }}"
+                   target="_blank"
+                   rel="noopener noreferrer">Open Alert in Recorded Future Portal</a>
+              </div>
+            {% endif %}
+          </div>
+          <h3 class="rf-playbook-alert-panel-title">Assessments</h3>
+          {% for assessment in result.data.panel_evidence_summary.assessments %}
+            <div class="rf-alert-panel">
+              <div class="rf-playbook-alert-data-row" style="gap: 5px; margin: 0">
+                <div class="rf-chip-box rf-playbook-alert-data-row"
+                     style="gap: 5px;
+                            margin: 0">
+                  <div class="rf-circle rf-priority-level-{{ assessment.level_name }}"></div>
+                  <div>{{ assessment.level_name }}</div>
+                </div>
+                <div class="rf-chip-box">{{ assessment.evidence.label }}</div>
+                <div>{{ assessment.added }}</div>
+              </div>
+              <h5>{{ assessment.risk_rule }}</h5>
+              <p>{{ assessment.evidence.summary }}</p>
+              {% if assessment.metadata %}
+                <p>{{ assessment.metadata.assessment_description }}</p>
+                <div class="rf-playbook-alert-data-row">
+                  <div class="rf-playbook-alert-data-row-title">Action to Consider</div>
+                  <div>{{ assessment.metadata.action_to_consider }}</div>
+                </div>
+              {% endif %}
+              {% with evidence=assessment.evidence %}
+                {% if evidence.type == "insikt_note" %}
+                  {% for note in evidence.data %}
+                    <div class="rf-alert-panel">
+                      <h5>{{ note.title }}</h5>
+                      <div>{{ note.published }} {{ note.topic }}</div>
+                      <p>{{ note.fragment }}</p>
+                      <div>Insikt Group Note: {{ note.id }}</div>
+                    </div>
+                  {% endfor %}
+                {% elif evidence.type == "reference" %}
+                  {% for reference in evidence.data %}
+                    <div class="rf-alert-panel">
+                      <h5>{{ reference.title }}</h5>
+                      <div>{{ reference.source }} {{ reference.published }}</div>
+                      <div>{{ reference.document_url }}</div>
+                      <p>{{ reference.fragment }}</p>
+                    </div>
+                  {% endfor %}
+                {% elif evidence.type == "hosts_communication" %}
+                  {% for traffic in evidence.data %}
+                    <div class="rf-alert-panel">
+                      <h5>Observed Network Traffic</h5>
+                      <div class="rf-playbook-alert-data-row">
+                        <div class="rf-playbook-alert-data-row-title">Recent Timestamp</div>
+                        <div>{{ traffic.recent_timestamp }}</div>
+                      </div>
+                      <div class="rf-playbook-alert-data-row">
+                        <div class="rf-playbook-alert-data-row-title">Client IP</div>
+                        <div>{{ traffic.client_ip_address|default:"N/A" }}</div>
+                      </div>
+                      <div class="rf-playbook-alert-data-row">
+                        <div class="rf-playbook-alert-data-row-title">Malware IP</div>
+                        <div>{{ traffic.malware_ip_address|default:"N/A" }}</div>
+                      </div>
+                      <div class="rf-playbook-alert-data-row">
+                        <div class="rf-playbook-alert-data-row-title">Malware</div>
+                        <div>{{ traffic.malware_family }}</div>
+                      </div>
+                    </div>
+                  {% endfor %}
+                {% elif evidence.type == "ip_rule" %}
+                  {% for rule in evidence.data %}
+                    <div class="rf-playbook-alert-data-row">
+                      <div>{{ rule.name }}</div>
+                      <div>{{ rule.number_of_ip_addresses }} IPs</div>
+                    </div>
+                  {% endfor %}
+                {% elif evidence.type == "cyber_trend" %}
+                  <h5>Mentioned Directly in Cyber Attack</h5>
+                  {% for trend in evidence.data %}
+                    <div class="rf-playbook-alert-data-row">
+                      <div>{{ trend.date }}</div>
+                      <div>{{ trend.number_of_references }} references</div>
+                    </div>
+                  {% endfor %}
+                {% elif evidence.type == "exposed_credentials" %}
+                  <table class="phantom-table dataTable">
+                    <thead>
+                      <tr>
+                        <th>Email</th>
+                        <th>Password</th>
+                        <th>Published Date</th>
+                        <th>Document</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for credential in evidence.data %}
+                        <tr>
+                          <td>{{ credential.email }}</td>
+                          <td>{{ credential.password }}</td>
+                          <td>{{ credential.document_publish_date }}</td>
+                          <td>{{ credential.document_title }}</td>
+                        </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                {% elif evidence.type != "summary_string" %}
+                  <div>Unsupported evidence type: {{ evidence.type }}</div>
+                {% endif %}
+              {% endwith %}
+            </div>
+          {% empty %}
+            <div class="rf-alert-panel">No assessments</div>
+          {% endfor %}
         {% endif %}
       {% endfor %}
     </div>
