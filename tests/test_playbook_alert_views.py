@@ -518,3 +518,68 @@ def test_dark_web_unsupported_mention_type(engine):
 )
 def test_defang_url(url, expected):
     assert defang_url(url) == expected
+
+
+def make_socmed_alert(**summary):
+    alert = make_alert(
+        "socmed_impersonation",
+        "Social Media Impersonation",
+        summary={
+            "matched_assets": [{"type": "company", "entity_id": "y", "name": "Acme Corp"}, {"type": "executive", "entity_id": "z"}],
+            "assessments": [{"name": "Suggested Takedown - Company", "criticality": "High"}],
+            "profile_url_id": "url:https://x.com/acme_support",
+            "platform_id": "source:twitter",
+            "platform_name": "Twitter",
+            "user_name": "Acme Support",
+            "user_handle": "acme_support",
+            "created_date": "2026-10-01T00:00:00Z",
+            "number_of_followers": 0,
+            "number_of_posts": 12,
+            "private_profile": False,
+            **summary,
+        },
+    )
+    alert["panel_status"].update({"entity_name": "https://x.com/acme_support", "alert_rule": {"name": "Executives"}})
+    return alert
+
+
+def test_socmed_impersonation_details(engine):
+    assert PLAYBOOK_ALERT_CATEGORY_DISPLAY_MAPPING["socmed_impersonation"] == "Social Media Impersonation"
+    html = render_details(engine, make_socmed_alert())
+    assert_rendered(
+        html,
+        "Social Media Impersonation",
+        "Acme Corp (company)",
+        "z (executive)",
+        "rf-priority-level-High",
+        "Suggested Takedown - Company",
+        "Executives",
+        'href="https://app.recordedfuture.com/portal/playbook-alerts/task:test"',
+        "Consider requesting a takedown",
+    )
+    rows = mention_rows(html.split("Profile Details", 1)[1])
+    assert rows["Source"] == "Twitter"
+    assert rows["Handle"] == "acme_support"
+    assert rows["Page Created"] == "2026-10-01, 00:00"
+    assert rows["Members/Followers"] == "0"
+    assert rows["Posts"] == "12"
+    assert rows["Status"] == "Public"
+    assert rows["URL"] == "hxxps://x[.]com/acme_support"
+
+
+@pytest.mark.parametrize("profile_url_id", ["url:https://x.com/acme_support", "https://x.com/acme_support"])
+def test_socmed_impersonation_profile_url_is_defanged(engine, profile_url_id):
+    rows = mention_rows(render_details(engine, make_socmed_alert(profile_url_id=profile_url_id)).split("Profile Details", 1)[1])
+    assert rows["URL"] == "hxxps://x[.]com/acme_support"
+
+
+def test_socmed_impersonation_fallbacks(engine):
+    alert = make_socmed_alert(assessments=[{"name": "Brand Mention", "criticality": "Informational"}], private_profile=None)
+    del alert["panel_evidence_summary"]["platform_name"]
+    del alert["panel_evidence_summary"]["number_of_posts"]
+    html = render_details(engine, alert)
+    rows = mention_rows(html.split("Profile Details", 1)[1])
+    assert rows["Source"] == "source:twitter"
+    assert rows["Posts"] == "N/A"
+    assert rows["Status"] == "N/A"
+    assert "Consider requesting a takedown" not in html

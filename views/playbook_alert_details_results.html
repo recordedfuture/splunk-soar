@@ -890,6 +890,115 @@
               <p style="white-space: pre-wrap">{{ result.data.panel_cached_content.content }}</p>
             </div>
           {% endif %}
+        {% elif result.data.category == "socmed_impersonation" %}
+          <h3 class="rf-playbook-alert-panel-title">Social Media Impersonation</h3>
+          <div class="rf-alert-panel">
+            <div class="rf-playbook-alert-data-row">
+              <div class="rf-playbook-alert-data-row-title">Subject</div>
+              <h5 style="word-break: break-all;">{{ result.data.panel_status.entity_name|default:result.data.panel_evidence_summary.profile_url }}</h5>
+            </div>
+            <div class="rf-playbook-alert-data-row">
+              <div class="rf-playbook-alert-data-row-title">Matched assets</div>
+              {% for asset in result.data.panel_evidence_summary.matched_assets %}
+                <div class="rf-chip-box">{{ asset.label }} ({{ asset.type }})</div>
+              {% endfor %}
+            </div>
+            <div class="rf-playbook-alert-data-row">
+              <div class="rf-playbook-alert-data-row-title">Assessments</div>
+              {% for assessment in result.data.panel_evidence_summary.assessments %}
+                <div class="rf-chip-box rf-playbook-alert-data-row"
+                     style="gap: 5px;
+                            margin: 0">
+                  <div class="rf-circle rf-priority-level-{{ assessment.criticality }}"></div>
+                  <div>{{ assessment.name }}</div>
+                </div>
+              {% endfor %}
+            </div>
+            <div class="rf-playbook-alert-data-row">
+              <div class="rf-playbook-alert-data-row-title">Status</div>
+              <div>{{ result.data.panel_status.status }}</div>
+            </div>
+            <div class="rf-playbook-alert-data-row">
+              <div class="rf-playbook-alert-data-row-title">Priority</div>
+              <div class="rf-playbook-alert-data-row" style="gap: 5px; margin: 0">
+                <div class="rf-circle rf-priority-level-{{ result.data.panel_status.priority }}"></div>
+                <div>{{ result.data.panel_status.priority }}</div>
+              </div>
+            </div>
+            <div class="rf-playbook-alert-data-row">
+              <div class="rf-playbook-alert-data-row-title">Assignee</div>
+              <div>{{ result.data.panel_status.assignee_name|default:"Unassigned" }}</div>
+            </div>
+            <div class="rf-playbook-alert-data-row">
+              <div class="rf-playbook-alert-data-row-title">Created</div>
+              <div>{{ result.data.panel_status.created }}</div>
+            </div>
+            <div class="rf-playbook-alert-data-row">
+              <div class="rf-playbook-alert-data-row-title">Updated</div>
+              <div>{{ result.data.panel_status.updated }}</div>
+            </div>
+            <div class="rf-playbook-alert-data-row">
+              <div class="rf-playbook-alert-data-row-title">Alert Rule</div>
+              <div>{{ result.data.panel_status.alert_rule.name }}</div>
+            </div>
+            {% if result.data.portal_url %}
+              <div class="rf-playbook-alert-data-row">
+                <a href="{{ result.data.portal_url }}"
+                   target="_blank"
+                   rel="noopener noreferrer">Open Alert in Recorded Future Portal</a>
+              </div>
+            {% endif %}
+          </div>
+          <h3 class="rf-playbook-alert-panel-title">Profile Details</h3>
+          <div class="rf-alert-panel">
+            {% with profile=result.data.panel_evidence_summary %}
+              <div class="rf-playbook-alert-data-row">
+                <div class="rf-playbook-alert-data-row-title">Source</div>
+                <div>{{ profile.platform|default:"N/A" }}</div>
+              </div>
+              <div class="rf-playbook-alert-data-row">
+                <div class="rf-playbook-alert-data-row-title">User Name</div>
+                <div>{{ profile.user_name|default:"N/A" }}</div>
+              </div>
+              <div class="rf-playbook-alert-data-row">
+                <div class="rf-playbook-alert-data-row-title">Handle</div>
+                <div>{{ profile.user_handle|default:"N/A" }}</div>
+              </div>
+              <div class="rf-playbook-alert-data-row">
+                <div class="rf-playbook-alert-data-row-title">Bio/About</div>
+                <div>{{ profile.description|default:"N/A" }}</div>
+              </div>
+              <div class="rf-playbook-alert-data-row">
+                <div class="rf-playbook-alert-data-row-title">Page Created</div>
+                <div>{{ profile.created_date|default:"N/A" }}</div>
+              </div>
+              <div class="rf-playbook-alert-data-row">
+                <div class="rf-playbook-alert-data-row-title">Members/Followers</div>
+                <div>{{ profile.number_of_followers|default_if_none:"N/A" }}</div>
+              </div>
+              <div class="rf-playbook-alert-data-row">
+                <div class="rf-playbook-alert-data-row-title">Posts</div>
+                <div>{{ profile.number_of_posts|default_if_none:"N/A" }}</div>
+              </div>
+              <div class="rf-playbook-alert-data-row">
+                <div class="rf-playbook-alert-data-row-title">Status</div>
+                <div>{{ profile.private_profile|yesno:"Private,Public,N/A" }}</div>
+              </div>
+              <div class="rf-playbook-alert-data-row">
+                <div class="rf-playbook-alert-data-row-title">URL</div>
+                <div style="word-break: break-all;">{{ profile.profile_url|default:"N/A" }}</div>
+              </div>
+              <p>The profile URL is defanged and not clickable. Use the portal link above to view the original profile.</p>
+            {% endwith %}
+          </div>
+          {% if result.data.panel_evidence_summary.takedown_suggested %}
+            <h3 class="rf-playbook-alert-panel-title">Actions to Consider</h3>
+            <div class="rf-alert-panel">
+              <ul>
+                <li>Consider requesting a takedown as a proactive step to mitigate and remove the identified content.</li>
+              </ul>
+            </div>
+          {% endif %}
         {% endif %}
       {% endfor %}
     </div>
