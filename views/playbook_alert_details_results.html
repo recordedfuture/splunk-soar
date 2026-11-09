@@ -718,7 +718,13 @@
             </div>
             <div class="rf-playbook-alert-data-row">
               <div class="rf-playbook-alert-data-row-title">Alert rule</div>
-              <div>{{ result.data.panel_status.alert_rule.name|default:result.data.panel_status.case_rule_label }}</div>
+              <div>
+                {% if result.data.panel_status.alert_rule.name %}
+                  {{ result.data.panel_status.alert_rule.name }}
+                {% else %}
+                  {{ result.data.panel_status.case_rule_label|default:"N/A" }}
+                {% endif %}
+              </div>
             </div>
             <div class="rf-playbook-alert-data-row">
               <div class="rf-playbook-alert-data-row-title">Status</div>

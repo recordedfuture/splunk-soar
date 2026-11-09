@@ -342,6 +342,15 @@ def test_malware_report_details_fall_back_to_case_rule_label(engine):
     assert_rendered(html, "Rule from label")
 
 
+@pytest.mark.parametrize("alert_rule, expected", [({"name": "Named rule"}, "Named rule"), ({}, "N/A"), (None, "N/A")])
+def test_malware_report_without_case_rule_label(engine, alert_rule, expected):
+    alert = make_alert("malware_report", "Unused label")
+    del alert["panel_status"]["case_rule_label"]
+    alert["panel_status"]["alert_rule"] = alert_rule
+    rows = mention_rows(render_details(engine, alert))
+    assert rows["Alert rule"] == expected
+
+
 def make_dark_web_alert(details):
     alert = make_alert(
         "dark_web",
@@ -582,4 +591,20 @@ def test_socmed_impersonation_fallbacks(engine):
     assert rows["Source"] == "source:twitter"
     assert rows["Posts"] == "N/A"
     assert rows["Status"] == "N/A"
+    assert "Consider requesting a takedown" not in html
+
+
+@pytest.mark.parametrize("summary_state", ["missing", "null", "empty"])
+def test_socmed_impersonation_without_summary(engine, summary_state):
+    alert = make_socmed_alert()
+    if summary_state == "missing":
+        del alert["panel_evidence_summary"]
+    else:
+        alert["panel_evidence_summary"] = None if summary_state == "null" else {}
+
+    html = render_details(engine, alert)
+    assert_rendered(html, "Social Media Impersonation", "https://x.com/acme_support", "Executives")
+    rows = mention_rows(html.split("Profile Details", 1)[1])
+    for label in ("Source", "User Name", "Handle", "Bio/About", "Page Created", "Members/Followers", "Posts", "Status", "URL"):
+        assert rows[label] == "N/A", label
     assert "Consider requesting a takedown" not in html

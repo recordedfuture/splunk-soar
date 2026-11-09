@@ -216,6 +216,7 @@ def format_socmed_impersonation_details(data):
     """Prepare the impersonating profile for display: the profile URL is defanged, since the
     account is under adversary control, and the platform falls back to its entity id."""
     summary = data.get("panel_evidence_summary") or {}
+    data["panel_evidence_summary"] = summary
     # profile_url_id is either a bare URL or a "url:" entity id
     summary["profile_url"] = defang_url((summary.get("profile_url_id") or "").removeprefix("url:"))
     summary["platform"] = summary.get("platform_name") or summary.get("platform_id") or ""
