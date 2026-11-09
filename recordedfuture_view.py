@@ -21,12 +21,14 @@
 import os
 import re
 from datetime import datetime
+from urllib.parse import urlsplit, urlunsplit
 
 from recordedfuture_consts import RF_PLAYBOOK_STATUS_MAP
 
 
 APP_URL = "https://app.recordedfuture.com/live/sc/entity/%s%%3A%s"
 VULN_APP_URL = "https://app.recordedfuture.com/live/sc/entity/%s"
+PLAYBOOK_ALERT_PORTAL_URL = "https://app.recordedfuture.com/portal/playbook-alerts/%s"
 
 ENTITY_LIST_STATUS_VALUE_TO_LITERAL_MAPPING = {
     "ready": "Ready (no pending updates)",
@@ -43,6 +45,11 @@ PLAYBOOK_ALERT_CATEGORY_DISPLAY_MAPPING = {
     "cyber_vulnerability": "Vulnerability",
     "code_repo_leakage": "Code Repo Leakage",
     "malicious_sites": "Malicious Sites",
+    "identity_novel_exposures": "Novel Identity Exposure",
+    "third_party_risk": "Third Party Risk",
+    "malware_report": "Malware Report",
+    "dark_web": "Dark Web",
+    "socmed_impersonation": "Social Media Impersonation",
 }
 
 
@@ -61,9 +68,185 @@ def load_shared_css():
 
 def format_datetime_string(datetime_string):
     try:
-        return datetime.strptime(datetime_string, "%Y-%m-%dT%H:%M:%S.%f%z").strftime("%Y-%m-%d, %H:%M")
-    except ValueError:
+        return datetime.fromisoformat(datetime_string).strftime("%Y-%m-%d, %H:%M")
+    except (TypeError, ValueError):
         return datetime_string
+
+
+DEFANGED_URL_SCHEMES = {"https": "hxxps", "http": "hxxp"}
+
+# URL fields of the Dark Web mention details, across all detail types.
+DARK_WEB_DETAIL_URL_FIELDS = ("message_url", "incident_url", "market_url", "post_url")
+
+
+def defang_url(url):
+    """Make an adversary controlled URL unclickable, e.g. "https://t.me/a" -> "hxxps://t[.]me/a".
+
+    Only the scheme and the dots in the host change, so an analyst can still read and re-fang it.
+    """
+    if not url:
+        return ""
+    if "[.]" in url:
+        # Already defanged, e.g. when the same result is rendered again
+        return url
+    try:
+        scheme, netloc, path, query, fragment = urlsplit(url)
+    except ValueError:
+        return url.replace(".", "[.]")
+    if not netloc:
+        return url.replace(".", "[.]")
+    return urlunsplit((DEFANGED_URL_SCHEMES.get(scheme, scheme), netloc.replace(".", "[.]"), path, query, fragment))
+
+
+# Heading and labelled rows for each Dark Web mention type, as (label, field, kind).
+DARK_WEB_MENTION_HEADINGS = {
+    "telegram_mention": "Channel Details",
+    "ransomware_extortion_site": "Incident Details",
+    "dark_web_forum_mention": "Forum Details",
+    "dark_web_market_mention": "Listing Details",
+}
+DARK_WEB_MENTION_ROWS = {
+    "telegram_mention": (
+        ("Telegram Channel", "telegram_channel_title", "text"),
+        ("Source", "source", "entity"),
+        ("Post", "post", "text"),
+        ("Publish Date", "publish_date", "date"),
+        ("Message URL", "message_url", "url"),
+    ),
+    "ransomware_extortion_site": (
+        ("Ransomware Group", "ransomware_group", "entity"),
+        ("Source", "source", "entity"),
+        ("Post Details", "post_details", "text"),
+        ("Post Date", "post_date", "date"),
+        ("Incident URL", "incident_url", "url"),
+    ),
+    "dark_web_forum_mention": (
+        ("Post Title", "post_title", "text"),
+        ("Source", "source", "entity"),
+        ("Post", "post", "text"),
+        ("Post Date", "post_date", "date"),
+        ("Post URL", "post_url", "url"),
+    ),
+    "dark_web_market_mention": (
+        ("Listing Title", "listing_title", "text"),
+        ("Source", "source", "entity"),
+        ("Listing Content", "listing_content", "text"),
+        ("Post Date", "post_date", "date"),
+        ("Market URL", "market_url", "url"),
+        ("Post URL", "post_url", "url"),
+    ),
+}
+
+
+def _dark_web_mention_value(value, kind):
+    if not value:
+        return ""
+    if kind == "entity":
+        return (value.get("name") or value.get("entity_id") or "") if isinstance(value, dict) else str(value)
+    if kind == "date":
+        return format_datetime_string(value)
+    if kind == "url":
+        return defang_url(value)
+    return value
+
+
+def format_dark_web_details(data):
+    """Turn the mention details into labelled rows for its type, and defang every URL in the
+    alert, since they all point at adversary infrastructure."""
+    summary = data.get("panel_evidence_summary") or {}
+    details = summary.get("details") or {}
+    mention_type = details.get("type") or "unknown"
+    rows = DARK_WEB_MENTION_ROWS.get(mention_type)
+    summary["mention"] = {
+        "type": mention_type,
+        "supported": rows is not None,
+        "heading": DARK_WEB_MENTION_HEADINGS.get(mention_type, "Mention Details"),
+        "rows": [
+            {"label": label, "value": _dark_web_mention_value(details.get(field), kind), "long": kind == "text"}
+            for label, field, kind in rows or ()
+        ],
+    }
+    for field in DARK_WEB_DETAIL_URL_FIELDS:
+        if details.get(field):
+            details[field] = defang_url(details[field])
+    analysis_report = data.get("panel_analysis_report") or {}
+    if analysis_report.get("created"):
+        analysis_report["created"] = format_datetime_string(analysis_report["created"])
+    cached_content = data.get("panel_cached_content") or {}
+    if cached_content.get("original_url"):
+        cached_content["original_url"] = defang_url(cached_content["original_url"])
+    if cached_content.get("downloaded"):
+        cached_content["downloaded"] = format_datetime_string(cached_content["downloaded"])
+    return data
+
+
+THIRD_PARTY_RISK_LEVELS = {1: "Informational", 2: "Moderate", 3: "High"}
+THIRD_PARTY_RISK_EVIDENCE_LABELS = {
+    "insikt_note": "Security Incidents",
+    "reference": "Security Incidents",
+    "summary_string": "Security Incidents",
+    "hosts_communication": "Malicious Network Activity",
+    "ip_rule": "Malicious Network Activity",
+    "cyber_trend": "Cyber Trends",
+    "exposed_credentials": "Exposed Credentials",
+}
+THIRD_PARTY_RISK_EVIDENCE_DATE_FIELDS = ("published", "recent_timestamp", "date", "document_publish_date")
+
+
+def format_third_party_risk_details(data):
+    """Name the levels and evidence types, format dates and list assessments newest first,
+    as the portal does."""
+    summary = data.get("panel_evidence_summary") or {}
+    assessments = summary.get("assessments") or []
+    assessments.sort(key=lambda assessment: assessment.get("added") or "", reverse=True)
+    for assessment in assessments:
+        assessment["level_name"] = THIRD_PARTY_RISK_LEVELS.get(assessment.get("level"), "Informational")
+        assessment["added"] = format_datetime_string(assessment.get("added"))
+        evidence = assessment.get("evidence") or {}
+        evidence["label"] = THIRD_PARTY_RISK_EVIDENCE_LABELS.get(evidence.get("type"), "Other")
+        for item in evidence.get("data") or []:
+            if isinstance(item, dict):
+                for field in THIRD_PARTY_RISK_EVIDENCE_DATE_FIELDS:
+                    if item.get(field):
+                        item[field] = format_datetime_string(item[field])
+    return data
+
+
+def format_socmed_impersonation_details(data):
+    """Prepare the impersonating profile for display: the profile URL is defanged, since the
+    account is under adversary control, and the platform falls back to its entity id."""
+    summary = data.get("panel_evidence_summary") or {}
+    data["panel_evidence_summary"] = summary
+    # profile_url_id is either a bare URL or a "url:" entity id
+    summary["profile_url"] = defang_url((summary.get("profile_url_id") or "").removeprefix("url:"))
+    summary["platform"] = summary.get("platform_name") or summary.get("platform_id") or ""
+    summary["takedown_suggested"] = any(
+        (assessment.get("name") or "").startswith("Suggested Takedown") for assessment in summary.get("assessments") or []
+    )
+    for asset in summary.get("matched_assets") or []:
+        asset["label"] = asset.get("name") or asset.get("entity_id") or ""
+    if summary.get("created_date"):
+        summary["created_date"] = format_datetime_string(summary["created_date"])
+    # 0 and False are meaningful here, so missing values are told apart from them
+    for field in ("number_of_followers", "number_of_posts", "private_profile"):
+        summary.setdefault(field, None)
+    return data
+
+
+def format_identity_novel_exposures_details(data):
+    """Add the values the Identity widget shows but the API does not provide directly."""
+    summary = data.get("panel_evidence_summary") or {}
+    if summary.get("authorization_url"):
+        try:
+            summary["authorization_domain"] = urlsplit(summary["authorization_url"]).hostname or ""
+        except ValueError:
+            summary["authorization_domain"] = ""
+    exposed_secret = summary.get("exposed_secret") or {}
+    exposed_secret["hash_algorithms"] = sorted({h["algorithm"] for h in exposed_secret.get("hashes") or [] if h.get("algorithm")})
+    compromised_host = summary.get("compromised_host") or {}
+    if compromised_host.get("exfiltration_date"):
+        compromised_host["exfiltration_date"] = format_datetime_string(compromised_host["exfiltration_date"])
+    return data
 
 
 def format_domain_abuse_details_result(result):
@@ -82,6 +265,21 @@ def format_domain_abuse_details_result(result):
     panel_evidence_whois = data.get("panel_evidence_whois", {})
     if panel_evidence_whois and not isinstance(panel_evidence_whois.get("body"), list):
         panel_evidence_whois["body"] = []
+
+    if data.get("playbook_alert_id"):
+        data["portal_url"] = PLAYBOOK_ALERT_PORTAL_URL % data["playbook_alert_id"]
+
+    if data.get("category") == "identity_novel_exposures":
+        data = format_identity_novel_exposures_details(data)
+
+    if data.get("category") == "third_party_risk":
+        data = format_third_party_risk_details(data)
+
+    if data.get("category") == "dark_web":
+        data = format_dark_web_details(data)
+
+    if data.get("category") == "socmed_impersonation":
+        data = format_socmed_impersonation_details(data)
 
     retval["data"] = data
     return retval
